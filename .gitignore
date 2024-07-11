@@ -1,2 +1,8 @@
 *.gpkg
+*.gpkg-shm
+*.gpkg-wal
 *~
+/venv/
+/scanned/
+/rendered/
+/thresholded/

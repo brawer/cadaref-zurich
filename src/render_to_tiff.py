@@ -54,7 +54,7 @@ class Mutation(object):
             rendered = pdf2image.convert_from_path(
                 scan.pdf_path, dpi=dpi, use_pdftocairo=True
             )
-            for page in rendered:
+            for page_num, page in enumerate(rendered):
                 pages.append(page)
                 tags = {
                     296: 2,  # resolution is in dpi
@@ -66,6 +66,7 @@ class Mutation(object):
                 meta = {
                     "mutation": self.id,
                     "scan": os.path.basename(scan.pdf_path),
+                    "scan_page": page_num + 1,
                 }
                 if len(scan.parcels) > 0:
                     meta["parcels"] = sorted(list(scan.parcels))
