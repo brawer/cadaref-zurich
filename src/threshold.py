@@ -57,7 +57,7 @@ def threshold(in_path, out_path):
             # that artificially darkens the image, in the hope that some circles
             # (for border points) stay closed.
             if t < 110:  # eg. first page of mutation AA3008 has t=83
-                new_t = t + 22
+                new_t = t + 30
                 meta["thresholding"] = {
                     "value": new_t,
                     "otsu_value": t,
@@ -65,6 +65,12 @@ def threshold(in_path, out_path):
                 }
                 t, thresh = cv2.threshold(gray, new_t, 255, cv2.THRESH_BINARY)
                 warnings.warn("fixing up thresholding: %s" % in_path)
+
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+            thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+            thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+            width, height = thresh.shape[1], thresh.shape[0]
+            cv2.rectangle(thresh, (0, 0), (width - 1, height - 1), 255, 1)
 
             bw = PIL.Image.fromarray(thresh).convert("1")
             bw.encoderinfo = {
