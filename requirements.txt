@@ -8,4 +8,6 @@ opencv-python
 pdf2image
 Pillow
 rasterio
+rio-cogeo
 shapely
+quads
