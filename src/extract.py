@@ -50,7 +50,7 @@ def extract_parcels(gpkg):
             w.writerow(row)
 
 
-def extract_points(gpkg):
+def extract_border_points(gpkg):
     points = {}
     for id, geom, kind in gpkg.connection.execute(
         "SELECT identifikator, geom '[Point]', punktzeichen_txt "
@@ -58,7 +58,17 @@ def extract_points(gpkg):
     ):
         assert id not in points, id
         assert geom.srs_id == 2056, id  # epsg.io/2056 = Swiss CH1903+/LV95
-        points[id] = (id, kind, "", geom.x, geom.y)
+        points[id] = (id, kind, geom.x, geom.y)
+    with open("border_points.csv", "w") as out:
+        w = csv.writer(out)
+        w.writerow(["point", "type", "x", "y"])
+        for key in sorted(points, key=sortkey):
+            id, kind, x, y = points[key]
+            w.writerow([id, kind, "%.3f" % x, "%.3f" % y])
+
+
+def extract_fix_points(gpkg):
+    points = {}
     for table in ("av_fi_lfp1", "av_fi_lfp2", "av_fi_lfp3"):
         for id, geom, kind, protection in gpkg.connection.execute(
             "SELECT nummer, geom '[Point]', punktzeichen_txt, schutz_txt "
@@ -67,7 +77,7 @@ def extract_points(gpkg):
             assert id not in points, id
             assert geom.srs_id == 2056, id  # epsg.io/2056 = Swiss CH1903+/LV95
             points[id] = (id, kind, protection, geom.x, geom.y)
-    with open("points.csv", "w") as out:
+    with open("fix_points.csv", "w") as out:
         w = csv.writer(out)
         w.writerow(["point", "type", "protection", "x", "y"])
         for key in sorted(points, key=sortkey):
@@ -79,5 +89,6 @@ def extract_points(gpkg):
 
 if __name__ == "__main__":
     gpkg = GeoPackage("av2007.gpkg")
-    extract_points(gpkg)
+    extract_border_points(gpkg)
+    extract_fix_points(gpkg)
     extract_parcels(gpkg)
