@@ -5,6 +5,7 @@
 
 from collections import namedtuple
 import csv
+import cv2
 import json
 import math
 import os
@@ -67,7 +68,7 @@ class Referencer(object):
                 continue
             transform = self.find_transform(thresholded, rendered, page_center)
             if transform is None:
-                continue                
+                continue
             rendered_img = numpy.asarray(rendered)
             if page_num == 0:
                 out_filename = "%s.tif" % mutation
@@ -116,7 +117,7 @@ class Referencer(object):
         
         scale_x, scale_y = self._get_dpi_scale(thresholded, rendered)
         dpi = float(thresholded.info["dpi"][0])
-        for map_scale in (500, 1000,):  # TODO: from OCR?
+        for map_scale in (500,1000,250):  # TODO: 1000, 250, 200 -- from OCR?
             pixels_to_meters = (map_scale / 100.0) * 2.54 / dpi
             width_meters = thresholded.width * pixels_to_meters
             height_meters = thresholded.height * pixels_to_meters
@@ -133,37 +134,77 @@ class Referencer(object):
             if len(geo_points) < 3:
                 continue
 
-            print('-------', map_scale)
-            print(len(geo_points), len(map_points))
-            tolerance = 0.4  # meters
-            for mi in range(len(map_points) - 1):
-                p = map_points[mi]
+            print('-------', map_scale, scale_x, scale_y)
+            print(len(geo_points), len(map_points), pixels_to_meters)
+            tolerance = 1.0  # meters
+            for pp in range(len(map_points) - 1):
+                p = map_points[pp]
                 print("p:", p)
-                for mj in range(mi+1, len(map_points)):
-                    q = map_points[mj]
-                    dx, dy = p[0] - q[0], p[1] - q[1]
-                    dist_pq = math.sqrt(dx*dx + dy*dy) * pixels_to_meters
+                for qq in range(pp+1, len(map_points)):
+                    q = map_points[qq]
+                    dx = (p[0] - q[0]) * pixels_to_meters
+                    dy = (p[1] - q[1]) * pixels_to_meters
+                    dist_pq_sq = dx*dx + dy*dy
+                    dist_pq = math.sqrt(dist_pq_sq)
                     min_dist_ab_sq = (dist_pq - tolerance) ** 2
                     max_dist_ab_sq = (dist_pq + tolerance) ** 2
                     for aa in range(len(geo_points)):
                         a = geo_points[aa].data
+                        #if a.id != "HG2805": continue
                         if p[2] != a.style: continue
-                        #if a.id != 'HG2805': continue
-                        for bb in range(len(geo_points)):
-                            if aa == bb:
-                                continue
+                        gcp_p_a = GroundControlPoint(col=p[0]*scale_x, row=p[1]*scale_y, x=a.x, y=a.y, id=a.id)
+                        #if a.id != 'HG2805': continue  # ----------- TODO: remove
+                        for bb in range(aa+1, len(geo_points)):
                             b = geo_points[bb].data
+                            #if b.id != "HG2775": continue
                             if q[2] != b.style:
                                 continue
                             dist_ab_sq = dist_sq(a, b)
-                            dist_ab = math.sqrt(dist_ab_sq)
-                            if min_dist_ab_sq <= dist_ab_sq <= max_dist_ab_sq:
-                                print("*** LEU a=%s b=%s p=(%d,%d) q=(%d,%d) Δab=%.1f Δpq=%.1f" % (a.id, b.id, int(p[0]), int(p[1]), int(q[0]), int(q[1]), dist_ab, dist_pq))
-                        #for b in self._points_on_circle(a.x, a.y, dist_pq):
-                        #    print("*** LEU.found", b)
-                        #print("*** LEU", mi, mj, k, pi, pj, pk)
-                        #print("*** LEU.distance:", 
-                        #return None
+                            if not(min_dist_ab_sq <= dist_ab_sq <= max_dist_ab_sq):
+                                continue
+                            gcp_q_b = GroundControlPoint(col=q[0]*scale_x, row=q[1]*scale_y, x=b.x, y=b.y, id=b.id)
+                            #print("*** GIRAFFE A=%s B=%s P=(%d,%d) Q=(%d,%d) ΔAB=%.1f ΔPQ=%.1f" % (a.id, b.id, int(p[0]), int(p[1]), int(q[0]), int(q[1]), math.sqrt(dist_ab_sq), dist_pq))
+                            for cc in range(len(geo_points)):
+                                if cc == aa or cc == bb:
+                                    continue
+                                c = geo_points[cc].data
+                                #if c.id != "HG2804":
+                                #    continue
+                                dist_ac = math.sqrt(dist_sq(a, c))
+                                dist_bc = math.sqrt(dist_sq(b, c))
+                                min_dist_pr_sq = (dist_ac - tolerance) ** 2
+                                max_dist_pr_sq = (dist_ac + tolerance) ** 2
+                                min_dist_qr_sq = (dist_bc - tolerance) ** 2
+                                max_dist_qr_sq = (dist_bc + tolerance) ** 2
+                                #print("    Looking for ΔPR between %.1f and %.1f meters" % (math.sqrt(min_dist_pr_sq), math.sqrt(max_dist_pr_sq)))
+                                #print("    Looking for ΔQR between %.1f and %.1f meters" % (math.sqrt(min_dist_qr_sq), math.sqrt(max_dist_qr_sq)))
+                                for rr in range(qq+1, len(map_points)):
+                                    if rr == pp or rr == qq:
+                                        continue
+                                    r = map_points[rr]
+                                    if r[2] != c.style:
+                                        continue
+                                    dx = (p[0] - r[0]) * pixels_to_meters
+                                    dy = (p[1] - r[1]) * pixels_to_meters
+                                    dist_pr_sq = dx*dx + dy*dy
+                                    if not(min_dist_pr_sq <= dist_pr_sq <= max_dist_pr_sq):
+                                        continue
+                                    dx = (q[0] - r[0]) * pixels_to_meters
+                                    dy = (q[1] - r[1]) * pixels_to_meters
+                                    dist_qr_sq = dx*dx + dy*dy
+                                    if not(min_dist_qr_sq <= dist_qr_sq <= max_dist_qr_sq):
+                                        continue
+                                    gcp_r_c = GroundControlPoint(col=r[0]*scale_x, row=r[1]*scale_y, x=c.x, y=c.y, id=c.id)
+                                    print("*** ZEBRA A=%s B=%s C=%s P=(%d,%d) Q=(%d,%d) R=(%d,%d)" % (a.id, b.id, c.id, p[0], p[1], q[0], q[1], r[0], r[1]))
+                                    print("        ΔPQ=%.1f vs. ΔAB=%.1f" % (math.sqrt(dist_pq_sq), math.sqrt(dist_ab_sq)))
+                                    print("        ΔPR=%.1f vs. ΔAC=%.1f" % (math.sqrt(dist_pr_sq), dist_ac))
+                                    print("        ΔQR=%.1f vs. ΔBC=%.1f" % (math.sqrt(dist_qr_sq), dist_bc))
+                                    transform = rasterio.transform.from_gcps([gcp_p_a, gcp_q_b, gcp_r_c])
+                                    print("transform:", transform)
+                                    # TODO: Actually this is just a hypothesis now. Compute residual, run RANSAC algorithm.
+                                    return transform
+
+
         return None
         
         px, py = self.double_white_circles['HG2803']
@@ -181,8 +222,6 @@ class Referencer(object):
         transform = rasterio.transform.from_gcps([a, b, c])
         return transform
 
-    def _guess_transforms(self, dpi):
-        pass
     
 
     def _guess_page_center(self, meta):
@@ -262,7 +301,7 @@ def process(mutation):
             write_plan(mutation, page_num, gcp)
             out_path = os.path.join('georeferenced', out_filename)
 
-            
+
 def dist_sq(a, b):
     delta_x = a.x - b.x
     delta_y = a.y - b.y
