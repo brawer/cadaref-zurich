@@ -40,6 +40,7 @@ FixedPoint = namedtuple("FixedPoint", "id type protection style x y")
 
 class Referencer(object):
     def __init__(self):
+        self._read_mutations()
         self._read_points()
         self._read_parcels()
 
@@ -316,11 +317,31 @@ class Referencer(object):
             if box := self.parcels.get(parcel_id):
                 min_x, max_x = min(min_x, box[0]), max(max_x, box[1])
                 min_y, max_y = min(min_y, box[2]), max(max_y, box[3])
+        mutation = meta["mutation"]
+        if mutation in self.mutations:
+            _, mx0, mx1, my0, my1 = self.mutations[mutation]
+            if mx0 is not None:
+                min_x = min(min_x, mx0, mx1)
+                max_x = max(max_x, mx0, mx1)
+                min_y = min(min_y, my0, my1)
+                max_y = max(max_y, my0, my1)
         if max_x == 0.0:
             return None
         center_x = min_x + (max_x - min_x) / 2.0
         center_y = min_y + (max_y - min_y) / 2.0
         return (center_x, center_y)
+
+    def _read_mutations(self):
+        self.mutations = {}
+        with open("survey_data/mutations.csv", "r") as csvfile:
+            for row in csv.DictReader(csvfile):
+                id, date = row["mutation"], row["date"]
+                if row["min_x"] == "":
+                    x0 = x1 = y0 = y1 = None
+                else:
+                    x0, x1 = float(row["min_x"]), float(row["max_x"])
+                    y0, y1 = float(row["min_y"]), float(row["max_y"])
+                self.mutations[id] = (date, x0, x1, y0, y1)
 
     def _read_parcels(self):
         self.parcels = {}
