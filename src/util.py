@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 
+# Counts as of July 22, 2024: {'A4': 4135, 'A3R': 1177, None: 207, 'A4R': 48, 'A3': 11}
 def din_format(tiff):
     """Returns one of {"A4", "A4R", "A3", "A3R", None} for a TIFF page."""
     formats = (
