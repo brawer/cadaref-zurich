@@ -349,7 +349,7 @@ class Referencer(object):
                     y=float(row["y"]),
                 )
                 points.append(p)
-        with open("fix_points.csv", "r") as csvfile:
+        with open("fixed_points.csv", "r") as csvfile:
             for row in csv.DictReader(csvfile):
                 p = FixedPoint(
                     id=row["point"],
