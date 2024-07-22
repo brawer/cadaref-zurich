@@ -102,6 +102,7 @@ def threshold_page(tiff, page_num):
 
 
 if __name__ == "__main__":
+    PIL.Image.MAX_IMAGE_PIXELS = None
     os.makedirs("thresholded", exist_ok=True)
     for f in sorted(os.listdir("rendered")):
         # if f != 'HG3302.tif': continue
