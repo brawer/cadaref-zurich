@@ -324,7 +324,7 @@ class Referencer(object):
 
     def _read_parcels(self):
         self.parcels = {}
-        with open("parcels.csv", "r") as csvfile:
+        with open("survey_data/parcels.csv", "r") as csvfile:
             for row in csv.DictReader(csvfile):
                 id = row["parcel"]
                 x0, x1 = float(row["min_x"]), float(row["max_x"])
@@ -333,7 +333,7 @@ class Referencer(object):
 
     def _read_points(self):
         points = []
-        with open("border_points.csv", "r") as csvfile:
+        with open("survey_data/border_points.csv", "r") as csvfile:
             for row in csv.DictReader(csvfile):
                 point_type = row["type"]
                 style = {
@@ -349,7 +349,7 @@ class Referencer(object):
                     y=float(row["y"]),
                 )
                 points.append(p)
-        with open("fixed_points.csv", "r") as csvfile:
+        with open("survey_data/fixed_points.csv", "r") as csvfile:
             for row in csv.DictReader(csvfile):
                 p = FixedPoint(
                     id=row["point"],
