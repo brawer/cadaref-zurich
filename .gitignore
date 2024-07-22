@@ -2,7 +2,9 @@
 *.gpkg-shm
 *.gpkg-wal
 *~
+__pycache__
 /venv/
 /scanned/
 /rendered/
 /thresholded/
+/tmp/
