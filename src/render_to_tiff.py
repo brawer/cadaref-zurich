@@ -34,8 +34,32 @@ MISNAMED_SCANS = {
     "FL_Mut_1976_Kat_FL3455_j1955.pdf": "FL_Mut_1976_Kat_FL3455_j1995.pdf",
     "FL_Mut_2217_Kat__FL3550_FL3551_FL3552_j2002.pdf": "FL_Mut_2217_Kat_FL3550_FL3551_FL3552_j2002.pdf",  # noqa: E501
     "HG_Mut_3001_Kat_7518_j1996.pdf": "HG_Mut_3001_Kat_HG7518_j1996.pdf",
+    "HO_Mut_2218_Kat_ HO4284_j1997.pdf": "HO_Mut_2218_Kat_HO4284_j1997.pdf",
+    "HO_Mut_2206_Kat_HO4351_HO4352__j1996.pdf": "HO_Mut_2206_Kat_HO4351_HO4352_j1996.pdf",
+    "HO_Mut_2131_Kat_HO4514_HO4515_j1909.pdf": "HO_Mut_2131_Kat_HO4514_HO4515_j1992.pdf",
+    "HO_Mut_2195_Kat_HO4538HO4539_j1995.pdf": "HO_Mut_2195_Kat_HO4538_HO4539_j1995.pdf",
+    "HO_Mut_2222_Kat_HO1509_HO1521_HO4459_HO4500__j1997.pdf": "HO_Mut_2222_Kat_HO1509_HO1521_HO4459_HO4500_j1997.pdf",
+    "HO_Mut_HO2453_Kat_HO4599_HO4600_HO4601_j2004.pdf": "HO_Mut_2453_Kat_HO4599_HO4600_HO4601_j2004.pdf",
+    "RI_Mut_2391RI_Kat_RI5304_RI5305_j1998.pdf": "RI_Mut_2391_Kat_RI5304_RI5305_j1998.pdf",
+    "RI_Mut_2216E_Kat_RIkeine_j1991.pdf": "RI_Mut_2216E_Kat_keine_j1991.pdf",
+    "FB_RI_Mut_2293_Kat_RI5260_jRI1994.pdf": "FB_RI_Mut_2293_Kat_RI5260_j1994.pdf",
+    "RI_Mut_0000_Kat_RI keine_j1991.pdf": "RI_Mut_0000_Kat_keine_j1991.pdf",
+    "SE_Mut_2793_Kat_SE6395_SE6396_SE6397_SE6398_SE6399__SE6400_SE6401_SE6402_SE6403_SE6404_SE6405_SE6406_SE6407_SE6408_j2006.pdf": "SE_Mut_2793_Kat_SE6395_SE6396_SE6397_SE6398_SE6399_SE6400_SE6401_SE6402_SE6403_SE6404_SE6405_SE6406_SE6407_SE6408_j2006.pdf",
+    "FB_SW_Mut_k-0001_Kat_FL3435_j1999.pdf": "FB_SW_Mut_k_0001_Kat_FL3435_j1999.pdf",
+    "SE_Mut_2317_Kat_4395_j1991.pdf": "SE_Mut_2317_Kat_SE4395_j1991.pdf",
+    "SW_Mut_24736_Kat_SW6458_SW6459_SW6460__j2011.pdf": "SW_Mut_24736_Kat_SW6458_SW6459_SW6460_j2011.pdf",
+    "WI_Mut_1050_Kat_WI3169_jWI1994.pdf": "WI_Mut_1050_Kat_WI3169_j1994.pdf",
+    "WP_Mut_WP2164_Kat_WP4742_WP4744_WP4748_WP4280_WP4281_j1995.pdf": "WP_Mut_2164_Kat_WP4742_WP4744_WP4748_WP4280_WP4281_j1995.pdf",
+    "WP_Mut_2120_Kat_WPWP2098_j1991.pdf": "WP_Mut_2120_Kat_WP2098_j1991.pdf",
+    "WO_Mut_K-0008_Kat_WO5846_j2000.pdf": "WO_Mut_k_0008_Kat_WO5846_j2000.pdf",
+    "WO_Mut_k-0004_Kat_WO2397_WO2398_j2000.pdf": "WO_Mut_k_0004_Kat_WO2397_WO2398_j2000.pdf",
+    "LE_WD_WO_Mut_22987_Kat_LE1771_LE1772_LE1773_LE1774_LE1775_LE1776_LE1777_WD9045_WD9046_WD9047_WD9048_WD9049_WO6648_WO6649_WO6650_WO6651_WO6652_WO6653_WO6654_WO6655_WO6656_WO6657_WO6658_WO6659_WO6660_WO666.pdf": "LE_WD_WO_Mut_22987_Kat_LE1771_LE1772_LE1773_LE1774_LE1775_LE1776_LE1777_WD9045_WD9046_WD9047_WD9048_WD9049_WO6648_WO6649_WO6650_WO6651_WO6652_WO6653_WO6654_WO6655_WO6656_WO6657_WO6658_WO6659_WO6660_WO6661_WO6662_j2013.pdf",  # noqa: E501
+    "WO_Mut_1938_Kat_WO5932_bis_WO6013_j1977.pdf": "WO_Mut_1938_Kat_WO5932_WO5933_WO5934_WO5935_WO5936_WO5937_WO5938_WO5939_WO5940_WO5941_WO5942_WO5943_WO5944_WO5945_WO5946_WO5947_WO5948_WO5949_WO5950_WO5951_WO5952_WO5953_WO5954_WO5955_WO5956_WO5957_WO5958_WO5959_WO5960_WO5961_WO5962_WO5963_WO5964_WO5965_WO5966_WO5967_WO5968_WO5969_WO5970_WO5971_WO5972_WO5973_WO5974_WO5975_WO5976_WO5977_WO5978_WO5979_WO5980_WO5981_WO5982_WO5983_WO5984_WO5985_WO5986_WO5987_WO5988_WO5989_WO5990_WO5991_WO5992_WO5993_WO5994_WO5995_WO5996_WO5997_WO5998_WO5999_WO6000_WO6001_WO6002_WO6003_WO6004_WO6005_WO6006_WO6007_WO6008_WO6009_WO6010_WO6011_WO6012_WO6013_WO6229_WO6244_WO6248_j1977.pdf",  # noqa: E501
 }
 
+OLD_MUTATIONS = {
+    "WO1938",
+}
 
 Scan = namedtuple("Scan", ["pdf_path", "parcels", "year"])
 
@@ -182,18 +206,22 @@ def erase_punch_holes(img):
 
 
 def cleanup_mutation_id(neighborhood, s):
+    if "_" in neighborhood:
+        neighborhood = neighborhood.replace("_", "")
     if s.startswith("k_"):  # eg. "AA_k_0001"
         return f"{neighborhood}_{s}"
     m = re.match(r"(\d+)([A-ha-h]?)", s)
     assert m is not None, (neighborhood, s)
     num = int(m.group(1))
+    if num >= 20000:
+        return str(num)
     suffix = m.group(2).upper()
     return f"{neighborhood}{num}{suffix}"
 
 
 def list_mutations():
     mutations = {}
-    mut_re = re.compile(r"^(FB_)?([A-Z]{2})_Mut_((k_)?(\d+)[A-Fa-f]?)_.+")
+    mut_re = re.compile(r"^(FB_)?([A-Z]{2}(_[A-Z]{2})*)_Mut_((k_)?(\d+)[A-Ha-h]?)_.+")
     for hood in os.listdir("scanned"):
         hood_dir = os.path.join("scanned", hood)
         for scan in os.listdir(hood_dir):
@@ -203,14 +231,14 @@ def list_mutations():
                 if fixed is None:
                     continue
                 if "__" in fixed:
-                    print("Bad filename:", scan_path)
+                    print('Bad filename with "__":', scan_path)
                     continue
                 mut_match = mut_re.match(fixed)
                 if mut_match is None:
-                    print("Bad filename:", scan_path)
+                    print("Bad filename x:", scan_path)
                     continue
                 mutation_id = cleanup_mutation_id(
-                    mut_match.group(2), mut_match.group(3)
+                    mut_match.group(2), mut_match.group(4)
                 )
                 parcels = re.findall(r"_([A-Z]{2}\d+)_", fixed)
                 if not parcels and "_keine_" not in fixed:
@@ -221,7 +249,7 @@ def list_mutations():
                     print("Bad filename:", scan_path)
                     continue
                 year = None if fixed.endswith("_j.pdf") else int(year[0])
-                if year and year < 1990:
+                if year and year < 1990 and mutation_id not in OLD_MUTATIONS:
                     print("Bad filename:", scan_path)
                     continue
                 scan_list = mutations.setdefault(mutation_id, [])
