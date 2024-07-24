@@ -70,7 +70,11 @@ class Mutation(object):
                 }
                 if len(scan.parcels) > 0:
                     meta["parcels"] = sorted(list(scan.parcels))
-                tags[270] = json.dumps(meta, sort_keys=True, separators=(",", ":"))
+                tags[270] = json.dumps(
+                    meta,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
                 page_tags.append(tags)
         tmp_path = path + ".tmp.tif"
         pages[0].save(
@@ -96,9 +100,19 @@ class Mutation(object):
         return path
 
 
+def cleanup_mutation_id(neighborhood, s):
+    if s.startswith("k_"):  # eg. "AA_k_0001"
+        return f"{neighborhood}_{s}"
+    m = re.match(r"(\d+)([A-ha-h]?)", s)
+    assert m is not None, (neighborhood, s)
+    num = int(m.group(1))
+    suffix = m.group(2).upper()
+    return f"{neighborhood}{num}{suffix}"
+
+
 def list_mutations():
     mutations = {}
-    mut_re = re.compile(r"^(FB_)?([A-Z]{2})_Mut_((k_)?\d+[A-Fa-f]?)_.+")
+    mut_re = re.compile(r"^(FB_)?([A-Z]{2})_Mut_((k_)?(\d+)[A-Fa-f]?)_.+")
     for hood in os.listdir("scanned"):
         hood_dir = os.path.join("scanned", hood)
         for scan in os.listdir(hood_dir):
@@ -114,15 +128,9 @@ def list_mutations():
                 if mut_match is None:
                     print("Bad filename:", scan_path)
                     continue
-                mutation_num = mut_match.group(3)
-                if re.match(r"^\d+$", mutation_num):
-                    mutation_id = "%s%d" % (
-                        mut_match.group(2),
-                        int(mutation_num),
-                    )  # noqa: E501
-                else:
-                    # eg. "AA_k_0001"
-                    mutation_id = "%s_%s" % (mut_match.group(2), mutation_num)
+                mutation_id = cleanup_mutation_id(
+                    mut_match.group(2), mut_match.group(3)
+                )
                 parcels = re.findall(r"_([A-Z]{2}\d+)_", fixed)
                 if not parcels and "_keine_" not in fixed:
                     print("Bad filename:", scan_path)
