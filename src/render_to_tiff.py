@@ -7,7 +7,11 @@ import re
 import subprocess
 from collections import namedtuple
 
+import cv2
+import numpy
 import pdf2image
+
+from util import din_format
 
 MISNAMED_SCANS = {
     "AA_Mut_3006_Kat_Keine_j1994.pdf": "AA_Mut_3006_Kat_AA7201_j1994.pdf",
@@ -41,6 +45,28 @@ class Mutation(object):
         self.id = id
         self.scans = scans
 
+    def _make_tags(self, dpi, scan, page):
+        tags = {
+            296: 2,  # resolution is in dpi
+            282: dpi,  # x resolution
+            283: dpi,  # y resolution
+        }
+        if scan.year is not None:
+            tags[306] = "%04d:01:01 00:00:00" % scan.year
+        meta = {
+            "mutation": self.id,
+            "scan": os.path.basename(scan.pdf_path),
+            "scan_page": page,
+        }
+        if len(scan.parcels) > 0:
+            meta["parcels"] = sorted(list(scan.parcels))
+        tags[270] = json.dumps(
+            meta,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return tags
+
     def render_to_tiff(self):
         dpi = 300
         path = os.path.join("rendered", "%s.tif" % self.id)
@@ -55,27 +81,14 @@ class Mutation(object):
                 scan.pdf_path, dpi=dpi, use_pdftocairo=True
             )
             for page_num, page in enumerate(rendered):
-                pages.append(page)
-                tags = {
-                    296: 2,  # resolution is in dpi
-                    282: dpi,  # x resolution
-                    283: dpi,  # y resolution
-                }
-                if scan.year is not None:
-                    tags[306] = "%04d:01:01 00:00:00" % scan.year
-                meta = {
-                    "mutation": self.id,
-                    "scan": os.path.basename(scan.pdf_path),
-                    "scan_page": page_num + 1,
-                }
-                if len(scan.parcels) > 0:
-                    meta["parcels"] = sorted(list(scan.parcels))
-                tags[270] = json.dumps(
-                    meta,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                )
-                page_tags.append(tags)
+                if cut := find_cut_position(page):
+                    pages.append(page.crop((0, 0, cut, page.height)))
+                    pages.append(page.crop((cut, 0, page.width, page.height)))
+                    page_tags.append(self._make_tags(dpi, scan, f"{page_num+1}L"))
+                    page_tags.append(self._make_tags(dpi, scan, f"{page_num+1}R"))
+                else:
+                    pages.append(page)
+                    page_tags.append(self._make_tags(dpi, scan, f"{page_num+1}"))
         tmp_path = path + ".tmp.tif"
         pages[0].save(
             tmp_path,
@@ -98,6 +111,74 @@ class Mutation(object):
                 )
         os.rename(tmp_path, path)
         return path
+
+
+# Quite frequently, two independent A4 pages were scanned together,
+# forming a roated A3 page. However, we also see actual A3 documents
+# in our input (both plans and text pages). By applying some simple
+# heuristics, we can decide whether or not a page needs to be cut
+# along the fold. This function returns the x position of the cut,
+# or None if the page should not be cut in two halves.
+def find_cut_position(tiff):
+    # All pages in need of cutting are in rotated DIN A3 format.
+    if din_format(tiff) != "A3R":
+        return False
+
+    downscale_factor = 4
+    page = numpy.asarray(tiff.reduce(downscale_factor))
+    h, w, _ = page.shape
+    mid = w // 2
+    fold_w = w // 20
+    fold = page[0:h, (mid - fold_w) : (mid + fold_w)]
+    gray = cv2.cvtColor(fold, cv2.COLOR_BGR2GRAY)
+    gray = erase_punch_holes(gray)
+    t, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    cv2.erode(thresh, (3, 2), dst=thresh)
+
+    num_black_px = h - numpy.count_nonzero(thresh, axis=0)
+    widest_gap_x, widest_gap_width = 0, 0
+    x = 0
+    while x < fold_w:
+        if num_black_px[x] > 0:
+            x = x + 1
+            continue
+        streak_start = x
+        while x < fold_w and num_black_px[x] == 0:
+            x = x + 1
+        streak_width = x - streak_start
+        if streak_width > widest_gap_width:
+            widest_gap_x = streak_start
+            widest_gap_width = streak_width
+    if widest_gap_width <= 3:
+        return None
+
+    # Always cutting in the exact middle of the A3 page looks gives
+    # better results than a heuristic for cutting in the middle of
+    # the widest gap.
+    if False:
+        x = mid - fold_w + widest_gap_x + widest_gap_width // 2
+        return x * downscale_factor
+    return tiff.width // 2
+
+
+def erase_punch_holes(img):
+    circles = cv2.HoughCircles(
+        img,
+        cv2.HOUGH_GRADIENT,
+        dp=1,
+        minDist=5,
+        param1=1,
+        param2=20,
+        minRadius=8,
+        maxRadius=12,
+    )
+    if circles is None:
+        return img
+    img = numpy.copy(img)
+    for c in circles[0, :]:
+        cx, cy, r = int(c[0] + 0.5), int(c[1] + 0.5), int(c[2] + 0.5)
+        cv2.circle(img, (cx, cy), r + 3, (255,), -1)
+    return img
 
 
 def cleanup_mutation_id(neighborhood, s):
