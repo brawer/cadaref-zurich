@@ -10,8 +10,20 @@ from collections import namedtuple
 import cv2
 import numpy
 import pdf2image
+import PIL.Image
 
 from util import din_format
+
+# We do not render these mutations; these will have to be handled manually.
+BLACKLISTED_MUTATIONS = {
+    "21841",  # too big
+}
+
+# For these mutations, we do not complain if the year in the PDF file name
+# is old.
+OLD_MUTATIONS = {
+    "WO1938",
+}
 
 MISNAMED_SCANS = {
     "AA_Mut_3006_Kat_Keine_j1994.pdf": "AA_Mut_3006_Kat_AA7201_j1994.pdf",
@@ -57,9 +69,6 @@ MISNAMED_SCANS = {
     "WO_Mut_1938_Kat_WO5932_bis_WO6013_j1977.pdf": "WO_Mut_1938_Kat_WO5932_WO5933_WO5934_WO5935_WO5936_WO5937_WO5938_WO5939_WO5940_WO5941_WO5942_WO5943_WO5944_WO5945_WO5946_WO5947_WO5948_WO5949_WO5950_WO5951_WO5952_WO5953_WO5954_WO5955_WO5956_WO5957_WO5958_WO5959_WO5960_WO5961_WO5962_WO5963_WO5964_WO5965_WO5966_WO5967_WO5968_WO5969_WO5970_WO5971_WO5972_WO5973_WO5974_WO5975_WO5976_WO5977_WO5978_WO5979_WO5980_WO5981_WO5982_WO5983_WO5984_WO5985_WO5986_WO5987_WO5988_WO5989_WO5990_WO5991_WO5992_WO5993_WO5994_WO5995_WO5996_WO5997_WO5998_WO5999_WO6000_WO6001_WO6002_WO6003_WO6004_WO6005_WO6006_WO6007_WO6008_WO6009_WO6010_WO6011_WO6012_WO6013_WO6229_WO6244_WO6248_j1977.pdf",  # noqa: E501
 }
 
-OLD_MUTATIONS = {
-    "WO1938",
-}
 
 Scan = namedtuple("Scan", ["pdf_path", "parcels", "year"])
 
@@ -263,5 +272,7 @@ def list_mutations():
 
 
 if __name__ == "__main__":
+    PIL.Image.MAX_IMAGE_PIXELS = None
     for id, mut in sorted(list_mutations().items()):
-        mut.render_to_tiff()
+        if id not in BLACKLISTED_MUTATIONS:
+            mut.render_to_tiff()
