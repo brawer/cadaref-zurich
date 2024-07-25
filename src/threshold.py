@@ -73,8 +73,10 @@ def threshold_page(tiff, page_num):
     # of mutation AA3008 with t=83. In those cases, we use a threshold
     # that artificially darkens the image, in the hope that some circles
     # (for border points) stay closed.
-    if t < 110:  # eg. first page of mutation AA3008 has t=83
-        new_t = t + 30
+    if t < 110:
+        # AA3008: 83 -> 98
+        # OB2432: 77 -> 92
+        new_t = t + 15
         meta["thresholding"] = {
             "value": new_t,
             "otsu_value": t,
@@ -83,7 +85,6 @@ def threshold_page(tiff, page_num):
         t, thresh = cv2.threshold(gray, new_t, 255, cv2.THRESH_BINARY)
         warnings.warn("fixing up thresholding: %s" % in_path)
 
-    width, height = thresh.shape[1], thresh.shape[0]
     bw = PIL.Image.fromarray(thresh).convert("1")
     bw.encoderconfig = ()
     bw.encoderinfo = {
@@ -105,7 +106,9 @@ if __name__ == "__main__":
     PIL.Image.MAX_IMAGE_PIXELS = None
     os.makedirs("thresholded", exist_ok=True)
     for f in sorted(os.listdir("rendered")):
-        # if f != 'HG3302.tif': continue
+        # mutation = f.split(".")[0]
+        # if mutation not in {"AA3008", "AA3009", "FL2005", "FL1929", "OB2432"}:
+        #     continue
         in_path = os.path.join("rendered", f)
         out_path = os.path.join("thresholded", f)
         if not os.path.exists(out_path):
