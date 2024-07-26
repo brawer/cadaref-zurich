@@ -5,7 +5,6 @@ fudgeo
 matplotlib
 numpy<2
 opencv-python
-pdf2image
 Pillow
 rasterio
 rio-cogeo
