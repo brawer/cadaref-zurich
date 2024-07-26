@@ -5,19 +5,14 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 from collections import namedtuple
 
 import cv2
 import numpy
-import pdf2image
 import PIL.Image
 
 from util import din_format
-
-# We do not render these mutations; these will have to be handled manually.
-BLACKLISTED_MUTATIONS = {
-    "21841",  # too big
-}
 
 # For these mutations, we do not complain if the year in the PDF file name
 # is old.
@@ -102,48 +97,83 @@ class Mutation(object):
 
     def render_to_tiff(self):
         dpi = 300
-        path = os.path.join("rendered", "%s.tif" % self.id)
-        if os.path.exists(path):
-            return path
+        out_path = os.path.join("rendered", "%s.tif" % self.id)
+        if os.path.exists(out_path):
+            return out_path
         os.makedirs("rendered", exist_ok=True)
-        pages = []
-        page_tags = []
-        for scan in self.scans:
-            print("Rendering", scan.pdf_path)
-            rendered = pdf2image.convert_from_path(
-                scan.pdf_path, dpi=dpi, use_pdftocairo=True
-            )
-            for page_num, page in enumerate(rendered):
-                if cut := find_cut_position(page):
-                    pages.append(page.crop((0, 0, cut, page.height)))
-                    pages.append(page.crop((cut, 0, page.width, page.height)))
-                    page_tags.append(self._make_tags(dpi, scan, f"{page_num+1}L"))
-                    page_tags.append(self._make_tags(dpi, scan, f"{page_num+1}R"))
-                else:
-                    pages.append(page)
-                    page_tags.append(self._make_tags(dpi, scan, f"{page_num+1}"))
-        tmp_path = path + ".tmp.tif"
-        pages[0].save(
-            tmp_path,
-            compression="tiff_deflate",
-            save_all=True,
-            append_images=pages[1:],
-        )
-        for page_num, tags in enumerate(page_tags):
-            for tag_id, value in sorted(tags.items()):
-                subprocess.run(
-                    [
-                        "tiffset",
-                        "-d",
-                        str(page_num),
-                        "-s",
-                        str(tag_id),
-                        str(value),
-                        tmp_path,
-                    ]
-                )
-        os.rename(tmp_path, path)
-        return path
+        with tempfile.TemporaryDirectory() as tmp:
+            pages = []
+            for scan_num, scan in enumerate(self.scans):
+                print("Rendering", scan.pdf_path)
+                tiff_path = os.path.join(tmp, f"scan_{scan_num}.tif")
+                self.run_ghostscript(scan.pdf_path, tiff_path, dpi)
+                with PIL.Image.open(tiff_path) as tiff:
+                    for page_num in range(tiff.n_frames):
+                        tiff.seek(page_num)
+                        del tiff.info["icc_profile"]
+                        if cut := find_cut_position(tiff):
+                            left_page_path = os.path.join(
+                                tmp, f"page_{scan_num}_{page_num}L.tif"
+                            )
+                            right_page_path = os.path.join(
+                                tmp, f"page_{scan_num}_{page_num}R.tif"
+                            )
+                            lpage = tiff.crop((0, 0, cut, tiff.height))
+                            rpage = tiff.crop((cut, 0, tiff.width, tiff.height))
+                            print(left_page_path)
+                            lpage.save(
+                                fp=left_page_path,
+                                format="tiff",
+                                tiffinfo=self._make_tags(dpi, scan, f"{page_num+1}L"),
+                            )
+                            pages.append(left_page_path)
+                            rpage.save(
+                                fp=right_page_path,
+                                format="tiff",
+                                tiffinfo=self._make_tags(dpi, scan, f"{page_num+1}R"),
+                            )
+                            pages.append(right_page_path)
+                        else:
+                            page_path = os.path.join(
+                                tmp, f"page_{scan_num}_{page_num}.tif"
+                            )
+                            tiff.save(
+                                fp=page_path,
+                                format="tiff",
+                                tiffinfo=self._make_tags(dpi, scan, f"{page_num+1}"),
+                            )
+                            pages.append(page_path)
+            tiffcp_cmd = [
+                "tiffcp",
+                "-m",
+                "0",
+                "-c",
+                "zip",
+                "-t",
+                "-w",
+                "512",
+                "-l",
+                "512",
+            ]
+            tiffcp_cmd.extend(pages)
+            tiffcp_cmd.append(out_path)
+            print(" ".join(tiffcp_cmd))
+            subprocess.run(tiffcp_cmd)
+
+    @staticmethod
+    def run_ghostscript(pdf_path, tiff_path, dpi):
+        ghostscript_cmd = [
+            "gs",
+            "-q",
+            f"-r{dpi}",
+            "-dNOPAUSE",
+            "-sDEVICE=tiff24nc",
+            f"-sOutputFile={tiff_path}",
+            pdf_path,
+            "-c",
+            "quit",
+        ]
+        subprocess.run(ghostscript_cmd)
 
 
 # Quite frequently, two independent A4 pages were scanned together,
@@ -274,5 +304,4 @@ def list_mutations():
 if __name__ == "__main__":
     PIL.Image.MAX_IMAGE_PIXELS = None
     for id, mut in sorted(list_mutations().items()):
-        if id not in BLACKLISTED_MUTATIONS:
-            mut.render_to_tiff()
+        mut.render_to_tiff()
