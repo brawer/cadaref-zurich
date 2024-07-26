@@ -47,6 +47,7 @@ MISNAMED_SCANS = {
     "HO_Mut_2195_Kat_HO4538HO4539_j1995.pdf": "HO_Mut_2195_Kat_HO4538_HO4539_j1995.pdf",
     "HO_Mut_2222_Kat_HO1509_HO1521_HO4459_HO4500__j1997.pdf": "HO_Mut_2222_Kat_HO1509_HO1521_HO4459_HO4500_j1997.pdf",
     "HO_Mut_HO2453_Kat_HO4599_HO4600_HO4601_j2004.pdf": "HO_Mut_2453_Kat_HO4599_HO4600_HO4601_j2004.pdf",
+    "OB_Mut_0000_Kat_keine_j2003.pdf": "OB_Mut_2627_Kat_OB4336_OB4337_j2003.pdf",
     "RI_Mut_2391RI_Kat_RI5304_RI5305_j1998.pdf": "RI_Mut_2391_Kat_RI5304_RI5305_j1998.pdf",
     "RI_Mut_2216E_Kat_RIkeine_j1991.pdf": "RI_Mut_2216E_Kat_keine_j1991.pdf",
     "FB_RI_Mut_2293_Kat_RI5260_jRI1994.pdf": "FB_RI_Mut_2293_Kat_RI5260_j1994.pdf",
@@ -120,7 +121,6 @@ class Mutation(object):
                             )
                             lpage = tiff.crop((0, 0, cut, tiff.height))
                             rpage = tiff.crop((cut, 0, tiff.width, tiff.height))
-                            print(left_page_path)
                             lpage.save(
                                 fp=left_page_path,
                                 format="tiff",
@@ -157,7 +157,6 @@ class Mutation(object):
             ]
             tiffcp_cmd.extend(pages)
             tiffcp_cmd.append(out_path)
-            print(" ".join(tiffcp_cmd))
             subprocess.run(tiffcp_cmd)
 
     @staticmethod
