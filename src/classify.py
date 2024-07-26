@@ -5,6 +5,20 @@ import cv2
 import numpy as np
 
 
+def detect_map_symbols(thresh):
+    contours, hierarchy = cv2.findContours(
+        thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS
+    )
+    result = []
+    for c, contour in enumerate(contours):
+        if klass := classify_contour(thresh, contours, hierarchy, c):
+            x, y, w, h = cv2.boundingRect(contour)
+            x, y = (x + w / 2, y + h / 2)
+            result.append((x, y, klass))
+    result.sort(key=lambda s: (s[1], s[0], klass))  # y, x, class
+    return result
+
+
 def classify(png):
     png_array = np.fromstring(png, dtype="uint8")
     gray = cv2.imdecode(png_array, cv2.IMREAD_GRAYSCALE)
