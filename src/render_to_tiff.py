@@ -14,6 +14,11 @@ import PIL.Image
 
 from util import din_format
 
+SKIP_MUTATIONS = {
+    "26365",  # GhostScript crashes
+}
+
+
 # For these mutations, we do not complain if the year in the PDF file name
 # is old.
 OLD_MUTATIONS = {
@@ -52,6 +57,7 @@ MISNAMED_SCANS = {
     "RI_Mut_2216E_Kat_RIkeine_j1991.pdf": "RI_Mut_2216E_Kat_keine_j1991.pdf",
     "FB_RI_Mut_2293_Kat_RI5260_jRI1994.pdf": "FB_RI_Mut_2293_Kat_RI5260_j1994.pdf",
     "RI_Mut_0000_Kat_RI keine_j1991.pdf": "RI_Mut_0000_Kat_keine_j1991.pdf",
+    "SE_Mut_0000_Kat_keine_j1991.pdf": "SE_Mut_2306_Kat_SE6146_SE6147_SE6148_SE7149_SE6150_j1990",
     "SE_Mut_2793_Kat_SE6395_SE6396_SE6397_SE6398_SE6399__SE6400_SE6401_SE6402_SE6403_SE6404_SE6405_SE6406_SE6407_SE6408_j2006.pdf": "SE_Mut_2793_Kat_SE6395_SE6396_SE6397_SE6398_SE6399_SE6400_SE6401_SE6402_SE6403_SE6404_SE6405_SE6406_SE6407_SE6408_j2006.pdf",
     "FB_SW_Mut_k-0001_Kat_FL3435_j1999.pdf": "FB_SW_Mut_k_0001_Kat_FL3435_j1999.pdf",
     "SE_Mut_2317_Kat_4395_j1991.pdf": "SE_Mut_2317_Kat_SE4395_j1991.pdf",
@@ -303,4 +309,5 @@ def list_mutations():
 if __name__ == "__main__":
     PIL.Image.MAX_IMAGE_PIXELS = None
     for id, mut in sorted(list_mutations().items()):
-        mut.render_to_tiff()
+        if id not in SKIP_MUTATIONS:
+            mut.render_to_tiff()
