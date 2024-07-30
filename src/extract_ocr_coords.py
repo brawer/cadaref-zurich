@@ -9,6 +9,8 @@ import re
 import PIL.Image
 import pytesseract
 
+from util import din_format
+
 
 def run_ocr(mutation):
     coords_re = re.compile(r"(\d{6,7}\.\d{3})\s+(\d{6,7}\.\d{3})")
@@ -24,6 +26,9 @@ def run_ocr(mutation):
         with PIL.Image.open(thresh_path) as thresh:
             for page_num in range(thresh.n_frames):
                 thresh.seek(page_num)
+                format = din_format(thresh)
+                if format not in ("A4", "A4R"):
+                    continue
                 text = pytesseract.image_to_string(
                     thresh, lang="deu", config="--oem 1 --psm 4"
                 )
