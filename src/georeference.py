@@ -32,8 +32,8 @@ HGN4862 = ("HGN4862", 2678624.15, 1251853.03)  # black dot
 
 LV95 = rasterio.crs.CRS.from_epsg(2056)  # epsg.io/2056
 
-BorderPoint = namedtuple("BorderPoint", "id type style x y")
-FixedPoint = namedtuple("FixedPoint", "id type protection style x y")
+BorderPoint = namedtuple("BorderPoint", "id type style x y created")
+FixedPoint = namedtuple("FixedPoint", "id type protection style x y created")
 
 # rasterio.transform.from_gcp
 
@@ -63,8 +63,14 @@ class Referencer(object):
             if not page_center:
                 print("cannot guess page center:", mutation)
                 continue
-            transform = self.find_transform(thresholded, rendered, page_center)
+            transform = self.find_transform(
+                mutation,
+                thresholded,
+                rendered,
+                page_center,
+            )
             if transform is None:
+                print("cannot find transform:", transform)
                 continue
             rendered_img = numpy.asarray(rendered)
             if page_num == 0:
@@ -105,13 +111,26 @@ class Referencer(object):
         (rx, ry), (tx, ty) = rendered.info["dpi"], thresholded.info["dpi"]
         return float(rx) / float(tx), float(ry) / float(ty)
 
-    def find_transform(self, thresholded, rendered, page_center):
+    def _get_mutation_date(self, mutation, tiff):
+        if mut := self.mutations.get(mutation):
+            return mut[0]
+        if tiff_date := tiff.tag_v2.get(306, ""):
+            return tiff_date[:4] + "-12-31"  # assume end of year
+        return None
+
+    def find_transform(self, mutation, thresholded, rendered, page_center):
+        date = self._get_mutation_date(mutation, thresholded)
+
         best_model = None
         best_residual = math.inf
         img = numpy.asarray(thresholded).astype(numpy.uint8) * 255
         map_points = self._find_map_points(img)
         # TODO: Remove filtering, this is just for debugging.
-        map_points = [p for p in map_points if p[2] == "double_white_circle"]
+        map_points = [
+            p
+            for p in map_points
+            if p[2] == "double_white_circle" or p[2] == "white_circle"
+        ]
         if len(map_points) < 3:
             return None
 
@@ -129,12 +148,22 @@ class Referencer(object):
                 max_y=page_center[1] + search_meters,
             )
             geo_points = self.points.within_bb(bbox)
-            # TODO: Remove filtering, this is just for debugging.
-            # geo_points = [p.data for p in geo_points if p.data.style == "double_white_circle"]
+            if date is not None:
+                geo_points = [p for p in geo_points if p.data.created <= date]
+            # print("*** ZEBRA", date, search_meters, len(geo_points))
+            # TODO: Also handle style="black_point"? Their detection is
+            # currently not very reliable, so no. For the time being.
+            geo_points = [
+                p
+                for p in geo_points
+                if p.data.style in ("double_white_circle", "white_circle")
+            ]
             if len(geo_points) < 3:
                 continue
+            for ppi, pp in enumerate(geo_points):
+                print("%s,%s,%s,%s" % (pp.data.id, pp.data.x, pp.data.y, pp.data.style))
 
-            # print("-------", map_scale, scale_x, scale_y)
+            print("-------", map_scale, scale_x, scale_y)
             # print(len(geo_points), len(map_points), pixels_to_meters)
             tolerance = 1.0  # meters
             for pp in range(len(map_points) - 1):
@@ -283,7 +312,7 @@ class Referencer(object):
                                             [gcp_p_scaled, gcp_q_scaled, gcp_r_scaled]
                                         )
                                         # TODO: Just for debugging
-                                        if residual < 300.5532:
+                                        if residual < 0.5:  # 0.7231381:
                                             return best_model
         return best_model
 
@@ -368,6 +397,7 @@ class Referencer(object):
                     style=style,
                     x=float(row["x"]),
                     y=float(row["y"]),
+                    created=row["created"],
                 )
                 points.append(p)
         with open("survey_data/fixed_points.csv", "r") as csvfile:
@@ -379,6 +409,7 @@ class Referencer(object):
                     style="double_white_circle",
                     x=float(row["x"]),
                     y=float(row["y"]),
+                    created=row["created"],
                 )
                 points.append(p)
         min_x = min(p.x for p in points)
