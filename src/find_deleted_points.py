@@ -12,11 +12,27 @@ import re
 import subprocess
 
 
+TITLE_WORDS = {
+    "Geomatik",
+    "ORTHOGONALE",
+    "Messdatenimport",
+    "GeoZ",
+    "Einrechnen",
+    "Basis",
+    "SCHNITT",
+    "LISTE",
+    "Liste",
+    "Mutation",
+    "MUTATION",
+    "alte",
+}
+
+
 def find_deleted_points(mutation, path):
     out_path = os.path.join("deleted_points", f"{mutation}.csv")
     if os.path.exists(out_path):
         return
-    print(path)
+    #print(path)
     proc = subprocess.run(
         ["pdftotext", "-layout", path, "-"],
         capture_output=True,
@@ -34,15 +50,16 @@ def find_deleted_points(mutation, path):
                 cols = line.split()
                 cols = [c for c in cols if c != "-"]
                 cols = [c for c in cols if c != "0.000"]
-                if len(cols) < 5:
+                if len(cols) < 1:
                     continue
                 id = cols[0]
                 if id == "Nummer":
                     continue
-                if id in {"Geomatik", "ORTHOGONALE", "Messdatenimport"}:
+                if id in TITLE_WORDS:
                     break
                 if not is_valid_id(id):
-                    id = f"*** {id}"
+                    print(id, path, cols)
+                    break
                 for i in range(len(cols) - 2):
                     if y := cleanup_coord(cols[i]):
                         if x := cleanup_coord(cols[i + 1]):
