@@ -11,6 +11,21 @@ POINT_ID = re.compile(r"^[12]\d{4}|[A-Z]{3}\d{4}$")
 AC = re.compile(r"^\d{2}$")
 
 
+# TODO: Review "todo-check-deleted-points"
+# (a) Compare list of points against deleted_points.csv.
+#     Make sure to manually review any points in deleted_points.csv
+#     but not in deleted_points/*.csv
+# (b) Look at todo-check-deleted-points for weird mutations.
+
+# TODO: Check mutation IDs against list of known mutations
+# from survey data (and possibly rendered mutations)
+
+# TODO: Check format and range of X and Y coordinates.
+
+# TODO: Check that supposedly deleted points aren't present
+# in survey data (either by coord or by id; best to check both).
+
+
 def created_ok(s):
     if s in ("", "51153", "2VAR"):
         return True
