@@ -63,7 +63,7 @@ def classify_contour(img, contours, hierarchy, c):
         has_black_2 = any(has_circle(img, x, y, r + i, 0) for i in [15])
         if has_black and has_white and has_black_2:
             return "double_white_circle"
-    if white and not has_holes and between(r, 7.5, 15.5):
+    if white and not has_holes and between(r, 7.5, 15.5) and parent is not None:
         pw, ph = cv2.minAreaRect(parent)[1]
         if pw > 150 or ph > 150:
             if not has_circle(img, x, y, r + 10, 0):
