@@ -26,6 +26,9 @@ OLD_MUTATIONS = {
 }
 
 MISNAMED_SCANS = {
+    "AF _Mut_31247_Kat_AF5382_j2019.pdf": "AF_Mut_31247_Kat_AF5382_j2019.pdf",
+    "AL_Mut_27812_Kat_AL_8669_j2016.pdf": "AL_Mut_27812_Kat_AL8669_j2016.pdf",
+    "SW_Mut_27836_Kat_SW_6481_j2015.pdf": "SW_Mut_27836_Kat_SW6481_j2015.pdf",
     "AA_Mut_3006_Kat_Keine_j1994.pdf": "AA_Mut_3006_Kat_AA7201_j1994.pdf",
     "AF_Mut_1539_Kat_0410_j1992.pdf": "AF_Mut_1539_Kat_AF410_j1992.pdf",
     "AF_Mut_1540_Kat_4958_j1992.pdf": "AF_Mut_1540_Kat_AF4958_j1992.pdf",
