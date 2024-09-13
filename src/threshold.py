@@ -40,7 +40,7 @@ def threshold(in_path, out_path):
         ) as out_tiff, PIL.Image.open(in_path) as tiff:
             for page_num in range(tiff.n_frames):
                 tiff.seek(page_num)
-                page = threshold_page(tiff, page_num)
+                page = threshold_page(in_path, tiff, page_num)
                 # https://github.com/python-pillow/Pillow/issues/3636#issuecomment-461986355
                 PIL.TiffImagePlugin._save(page, out_tiff, tmp_path)
                 out_tiff.newFrame()
@@ -48,7 +48,7 @@ def threshold(in_path, out_path):
         subprocess.run(cmd)
 
 
-def threshold_page(tiff, page_num):
+def threshold_page(in_path, tiff, page_num):
     if d := tiff.tag_v2.get(270):
         meta = json.loads(d)
     else:
