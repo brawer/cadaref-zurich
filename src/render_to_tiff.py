@@ -26,6 +26,12 @@ OLD_MUTATIONS = {
     "WO1938",
 }
 
+# For these pages, we force splitting them in half even if our auto-detection
+# of glued pages does not trigger.
+FORCE_PAGE_SPLIT = {  # key is *after* lookup in MISNAMED_SCANS
+    ("WI_Mut_20102_Kat_WI3981_WI3982_j2005.pdf", 1),
+}
+
 MISNAMED_SCANS = {
     "AF _Mut_31247_Kat_AF5382_j2019.pdf": "AF_Mut_31247_Kat_AF5382_j2019.pdf",
     "AL_Mut_27812_Kat_AL_8669_j2016.pdf": "AL_Mut_27812_Kat_AL8669_j2016.pdf",
@@ -143,7 +149,7 @@ class Mutation(object):
                     for page_num in range(tiff.n_frames):
                         tiff.seek(page_num)
                         del tiff.info["icc_profile"]
-                        if cut := find_cut_position(tiff):
+                        if cut := find_cut_position(tiff, scan, page_num):
                             left_page_path = os.path.join(
                                 tmp, f"page_{scan_num}_{page_num}L.tif"
                             )
@@ -212,7 +218,12 @@ class Mutation(object):
 # heuristics, we can decide whether or not a page needs to be cut
 # along the fold. This function returns the x position of the cut,
 # or None if the page should not be cut in two halves.
-def find_cut_position(tiff):
+def find_cut_position(tiff, scan, page_num):
+    path = os.path.basename(scan.pdf_path)
+    path = MISNAMED_SCANS.get(path, path)
+    if (path, page_num + 1) in FORCE_PAGE_SPLIT:
+        return tiff.width // 2
+
     # All pages in need of cutting are in rotated DIN A3 format.
     if din_format(tiff) != "A3R":
         return False
@@ -329,7 +340,10 @@ def list_mutations():
                 mutation_id = cleanup_mutation_id(
                     mut_match.group(2), mut_match.group(4)
                 )
-                parcels = re.findall(r"_([A-Z]{2}\d+)_", fixed)
+                parcels = None
+                if "_Kat_" in fixed:
+                    post_kat = fixed.split("_Kat_", 1)[1]
+                    parcels = re.findall(r"([A-Z]{2}\d+)", post_kat)
                 if not parcels and "_keine_" not in fixed:
                     print("Bad filename:", scan_path)
                     continue
