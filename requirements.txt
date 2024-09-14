@@ -9,5 +9,4 @@ Pillow
 rasterio
 rio-cogeo
 shapely
-ocrmac
 quads
