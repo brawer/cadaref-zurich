@@ -4,6 +4,7 @@
 from collections import namedtuple
 import csv
 import os
+import re
 
 import cv2
 import json
@@ -23,10 +24,13 @@ DELETED_POINT_STYLES = {
     "4": "white_circle",
 }
 
+PARCEL_RE = re.compile(
+    r"\s((AA|AF|AL|AR|AU|EN|FL|HG|HI|HO|LE|OB|OE|RI|SE|SW|UN|WD|WI|WO|WP)\d{1,4})\s"
+)
+
 
 class Georeferencer(object):
     def __init__(self):
-        self.deleted_parcels = self._read_deleted_parcels()
         self.deleted_points = self._read_deleted_points()
         self.mutations = self._read_mutations()
         self.parcels = self._read_parcels()
@@ -36,10 +40,14 @@ class Georeferencer(object):
         thresholded_path = os.path.join("thresholded", f"{mutation}.tif")
         if not os.path.exists(thresholded_path):
             threshold(rendered_path, thresholded_path)
+        with open(os.path.join("rendered", f"{mutation}.txt")) as fp:
+            ocr_text = fp.read()
+            ocr_parcels = set([m[0] for m in PARCEL_RE.findall(ocr_text)])
         with PIL.Image.open(thresholded_path) as thresh:
-            bbox = self._mutation_bbox(thresh)
-            if bbox is None:
-                print(mutation)
+            bboxes = self._mutation_bboxes(mutation, thresh, ocr_parcels)
+            symbols = self._detect_map_symbols(mutation, thresh, scale=0.5)
+        if len(bboxes) == 0:
+            print(mutation)
 
     def _read_mutations(self):
         points, dates = {}, {}
@@ -72,7 +80,6 @@ class Georeferencer(object):
                 min_y=min(y for _x, y in pts) if pts else None,
                 max_y=max(y for _x, y in pts) if pts else None,
             )
-        print("*** GIRAFFE", mutations["22315"])
         return mutations
 
     @staticmethod
@@ -104,22 +111,11 @@ class Georeferencer(object):
                         x=float(rec["X [LV95]"]),
                         y=float(rec["Y [LV95]"]),
                         style=style,
-                        created_by=rec["Erstellt"],
-                        deleted_by=rec["Gelöscht"],
+                        created_by=rec["Erstellmutation"],
+                        deleted_by=rec["Löschmutation"],
                     )
                 )
         return points
-
-    @staticmethod
-    def _read_deleted_parcels():
-        delp = {}
-        path = os.path.join(os.path.dirname(__file__), "deleted_parcels.csv")
-        with open(path) as fp:
-            for rec in csv.DictReader(fp):
-                mut = rec["Mutation"]
-                parcels = set(rec["Gelöschte Parzellen"].split())
-                delp[mut] = parcels
-        return delp
 
     def _mutation_parcels(self, tiff):
         parcels = set()
@@ -127,62 +123,66 @@ class Georeferencer(object):
             tiff.seek(page_num)
             meta = json.loads(tiff.tag_v2[270])
             parcels.update(meta.get("parcels", []))
-            if delp := self.deleted_parcels.get(meta["mutation"]):
-                parcels.update(delp)
         return parcels
 
-    def _mutation_bbox(self, tiff):
+    def _mutation_bboxes(self, mutation, tiff, ocr_parcels):
         boxes = []
         meta = json.loads(tiff.tag_v2[270])
+        # Sometimes we know a mutation's coordinates from survey data,
+        # such as when the current survey data contains border points
+        # that have been created by a mutation.
         if m := self.mutations.get(meta["mutation"]):
             boxes.append(m)
+        # Another source for coordinates is the parcels that were
+        # created by the mutation; some of the newly created parcels
+        # may still exist today.
         for parcel in self._mutation_parcels(tiff):
             if p := self.parcels.get(parcel):
                 boxes.append(p)
-        if len(boxes) == 0:
+        # Also, the mutation PDF may contain parcel names which
+        # have been extracted from OCR. For example, newer plans
+        # conain strings such as "WO3525" which look very much
+        # like a parcel name; again, some of those parcels may
+        # still exist today so we get a bounding box from survey
+        # data.
+        for parcel in ocr_parcels:
+            if p := self.parcels.get(parcel):
+                boxes.append(p)
+        return boxes
+
+    @staticmethod
+    def _bbox_extent(boxes):
+        if boxes is not None and len(boxes) > 0:
+            min_x = min(b.min_x for b in boxes if b.min_x)
+            max_x = max(b.max_x for b in boxes if b.max_x)
+            min_y = min(b.min_y for b in boxes if b.min_y)
+            max_y = max(b.max_y for b in boxes if b.max_y)
+            return (min_x, max_x, min_y, max_y)
+        else:
             return None
-        min_x = min(box.min_x for box in boxes)
-        max_x = max(box.max_x for box in boxes)
-        min_y = min(box.min_y for box in boxes)
-        max_y = max(box.max_y for box in boxes)
-        return (min_x, max_x, min_y, max_y)
+
+    def _detect_map_symbols(self, _mutation, thresh, scale):
+        result = []
+        for page_num in range(thresh.n_frames):
+            thresh.seek(page_num)
+            page = numpy.asarray(thresh).astype(numpy.uint8) * 255
+            # Our classifier sometimes gets confused if the outermost
+            # pixels aren't white. Draw a one-pixel white line around
+            # the plan.
+            h, w = page.shape[0], page.shape[1]
+            cv2.rectangle(page, (0, 0), (w - 1, h - 1), color=255)
+            symbols = [
+                (x * scale, y * scale, sym) for (x, y, sym) in detect_map_symbols(page)
+            ]
+            result.append(symbols)
+        return result
 
 
 if __name__ == "__main__":
     PIL.Image.MAX_IMAGE_PIXELS = None
     os.makedirs("georeferenced", exist_ok=True)
     ref = Georeferencer()
-    # TODO --- should be listdir("rendered")
-    for f in sorted(os.listdir("thresholded")):
-        ref.georeference(f.rsplit(".tif", 1)[0])
-        continue
-
-        rendered_path = os.path.join("rendered", f)
-        thresholded_path = os.path.join("thresholded", f)
-        out_path = os.path.join("georeferenced", f)
-        if not os.path.exists(thresholded_path):
-            threshold(rendered_path, thresholded_path)
-
-        num_plans = 0
-        with PIL.Image.open(thresholded_path) as thresh:
-            parcels = set()
-            for page_num in range(thresh.n_frames):
-                thresh.seek(page_num)
-                meta = json.loads(thresh.tag_v2[270])
-                mutation = meta["mutation"]
-                bbox = find_mutation_bbox(meta["mutation"], mutations)
-                if not bbox:
-                    print(mutation)
-                continue
-                page = numpy.asarray(thresh).astype(numpy.uint8) * 255
-                h, w = page.shape[0], page.shape[1]
-                cv2.line(page, (0, 0), (w - 1, h - 1), color=255, thickness=1)
-                symbols = [
-                    (x / 2, y / 2, sym) for (x, y, sym) in detect_map_symbols(page)
-                ]
-                white_symbols = [s for s in symbols if "white" in s[2]]
-                if len(white_symbols) > 4:
-                    print(f, page_num + 1, len(white_symbols))
-                    num_plans += 1
-        if num_plans == 0:
-            print(f, "---")
+    mutations = set(f.rsplit(".", 1)[0] for f in os.listdir("rendered"))
+    mutations = {m for m in mutations if m[0] not in {"2", "3"}}
+    for mut in sorted(mutations):
+        ref.georeference(mut)
