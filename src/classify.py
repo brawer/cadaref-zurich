@@ -95,6 +95,8 @@ def contour_circle(contour):
     if w < 8 or w > 35 or h < 8 or h > 35:
         return None, None, None
     box = cv2.minAreaRect(contour)
+    if box[1][1] < 0.5:
+        return None, None, None
     box_aspect_ratio = float(box[1][0]) / box[1][1]  # width/height
     if box_aspect_ratio < 0.75 or box_aspect_ratio > 1.25:
         return None, None, None
