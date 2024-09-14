@@ -1,6 +1,11 @@
 # SPDX-FileCopyrightText: 2024 Sascha Brawer <sascha@brawer.ch>
 # SPDX-License-Identifier: MIT
 
+# First step in our processing pipeline, renders PDF to TIFF,
+# and extracts text embedded into those PDFs.
+#
+# This tool calls ghostscript and pdftotext (from Xpdfreader).
+
 import csv
 import json
 import os
@@ -143,7 +148,7 @@ class Mutation(object):
         with tempfile.TemporaryDirectory() as tmp:
             pages = []
             for scan_num, scan in enumerate(self.scans):
-                print("Rendering", scan.pdf_path)
+                print(f"{self.id}: Rendering {scan.pdf_path}")
                 tiff_path = os.path.join(tmp, f"scan_{scan_num}.tif")
                 self.run_ghostscript(scan.pdf_path, tiff_path, dpi)
                 with PIL.Image.open(tiff_path) as tiff:
@@ -196,6 +201,40 @@ class Mutation(object):
             tiffcp_cmd.extend(pages)
             tiffcp_cmd.append(out_path)
             subprocess.run(tiffcp_cmd)
+
+    def extract_text(self):
+        # As OCR system, we tried tesseract, easyOCR, and the
+        # OCR library built that Apple ships with macOS Sonoma 14.6.
+        # They were all (much) worse in quality than the text that
+        # is embedded into the input PDF files.
+        out_path = os.path.join("rendered", "%s.txt" % self.id)
+        if os.path.exists(out_path):
+            return out_path
+        pages = []
+        for scan in self.scans:
+            print(f"{self.id}: Extracting text from {scan.pdf_path}")
+            proc = subprocess.run(
+                ["pdftotext", "-layout", scan.pdf_path, "-"],
+                capture_output=True,
+            )
+            assert proc.returncode == 0, (scan.pdf_path, proc.returncode)
+            text = proc.stdout.decode("utf-8")
+            for page_num, page in enumerate(text.split("\u000C")):
+                meta = {
+                    "mutation": self.id,
+                    "scan": os.path.basename(scan.pdf_path),
+                    "scan_page": page_num + 1,
+                }
+                meta_json = json.dumps(
+                    meta,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                pages.append(f"#### Cadaref {meta_json}\n{page}\n")
+        tmp_path = out_path + ".tmp"
+        with open(tmp_path, "w") as out:
+            out.write("".join(pages))
+        os.rename(tmp_path, out_path)
 
     @staticmethod
     def run_ghostscript(pdf_path, tiff_path, dpi):
@@ -372,3 +411,4 @@ if __name__ == "__main__":
     for id, mut in sorted(list_mutations().items()):
         if id not in SKIP_MUTATIONS:
             mut.render_to_tiff()
+            mut.extract_text()
