@@ -19,11 +19,36 @@ Parcel = namedtuple("Parcel", "id min_x max_x min_y max_y")
 DeletedPoint = namedtuple("DeletedPoint", "id style x y created_by deleted_by")
 
 
+# point class in src/deleted_points.csv --> cartographic style
 DELETED_POINT_STYLES = {
     "2": "double_white_circle",
     "4": "white_circle",
 }
 
+# The PDFs with the scanned mutation files indicate as part of their
+# file names which parcels have been created by each mutation. For
+# georeferencing, we use these parcel numbers to find an approximate
+# bounding box for the scanned plan (we can't work on the entire city
+# because it's too big, and there might also be a risk of wildly wrong
+# mismatches).
+#
+# However, the more we step back into history, the likelier it gets
+# that those parcels have been modified again by later mutations.
+# In that case, the parcels get new IDs, and we don't see their old ID
+# in today's land survey database. Therefore, we enrich the manually
+# annotated parcel identifiers with other parcel IDs in the scanned plan,
+# as recognized by Optical Character Recognition (OCR). Typically these
+# belong to parcels in the close neighborhood of the mutation.
+#
+# By having more parcel IDs to work on, we have a higher chance that
+# at least one or two of them are still in existence today, allowing
+# us to find an approximate location for the scanned mutation plan.
+#
+# This regular expression is used for extracting parcel identifiers
+# such as "HG3099" or "EN123" from the OCRed plaintext. We
+# intentionally do not look for GEOS Pro identifiers such as "27123",
+# since these numbers also occur in other context (not as parcel
+# identifiers) in the mutation files.
 PARCEL_RE = re.compile(
     r"\s((AA|AF|AL|AR|AU|EN|FL|HG|HI|HO|LE|OB|OE|RI|SE|SW|UN|WD|WI|WO|WP)\d{1,4})\s"
 )
