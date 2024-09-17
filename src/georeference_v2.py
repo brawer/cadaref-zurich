@@ -1,16 +1,20 @@
 # SPDX-FileCopyrightText: 2024 Sascha Brawer <sascha@brawer.ch>
 # SPDX-License-Identifier: MIT
 
-from collections import namedtuple
+import argparse
 import csv
-from datetime import datetime, timezone
 import io
 import json
 import os
 import re
+import subprocess
+import sys
+import tempfile
+import time
+from collections import namedtuple
+from datetime import datetime, timezone
 
 import cv2
-import json
 import numpy
 import PIL.Image
 import quads
@@ -20,25 +24,28 @@ from threshold import threshold
 
 Mutation = namedtuple("Mutation", "id date min_x max_x min_y max_y")
 Parcel = namedtuple("Parcel", "id min_x max_x min_y max_y")
-DeletedPoint = namedtuple("DeletedPoint", "id style x y created_by deleted_by")
-BorderPoint = namedtuple("BorderPoint", "id style x y created")
-FixedPoint = namedtuple("FixedPoint", "id style x y created")
+DeletedPoint = namedtuple(
+    "DeletedPoint",
+    "id symbol x y created_by deleted_by",
+)
+BorderPoint = namedtuple("BorderPoint", "id symbol x y created")
+FixedPoint = namedtuple("FixedPoint", "id symbol x y created")
 
 
 # Map from point classes in survey_data/border_points.csv to cartographic
-# styles. Style IDs are the same as returned by detect_map_symbols()
+# symbols. Symbol IDs are the same as returned by detect_map_symbols()
 # in src/classify.py.
-BORDER_POINT_STYLES = {
+BORDER_POINT_SYMBOLS = {
     "unversichert": "black_dot",
     "Bolzen": "white_circle",
     "Stein": "white_circle",
 }
 
 
-# Map from point classes in src/deleted_points.csv to cartographic styles.
-# Cartographic style IDs are the same as returned by detect_map_symbols()
+# Map from point classes in src/deleted_points.csv to cartographic symbols.
+# Cartographic symbol IDs are the same as returned by detect_map_symbols()
 # in src/classify.py.
-DELETED_POINT_STYLES = {
+DELETED_POINT_SYMBOLS = {
     "2": "double_white_circle",
     "4": "white_circle",
 }
@@ -78,7 +85,10 @@ PLAN_SCALE_RE = re.compile(r"\b1\s*:\s*(100|200|250|500|1000|2000)\b")
 
 
 class Georeferencer(object):
-    def __init__(self):
+    def __init__(self, cadaref_tool, out_dir):
+        self.cadaref_tool = cadaref_tool
+        self.out_dir = "georeferenced"
+        os.makedirs(self.out_dir, exist_ok=True)
         self.deleted_points = self._read_deleted_points()
         self.mutations = self._read_mutations()
         self.parcels = self._read_parcels()
@@ -88,6 +98,7 @@ class Georeferencer(object):
         self.quad_tree = self._build_quad_tree(points)
 
     def georeference(self, mutation):
+        print(f"georeferencing {mutation}")
         log = io.StringIO()
         rendered_path = os.path.join("rendered", f"{mutation}.tif")
         thresholded_path = os.path.join("thresholded", f"{mutation}.tif")
@@ -98,6 +109,7 @@ class Georeferencer(object):
             ocr_parcels = set([m[0] for m in PARCEL_RE.findall(ocr_text)])
             ocr_scales = self._extract_scales(ocr_text)
             screenshots = self._screenshot_pages(ocr_text)
+        num_plans = 0
         with PIL.Image.open(rendered_path) as rend:
             with PIL.Image.open(thresholded_path) as thresh:
                 bbox = self._mutation_bbox(mutation, thresh, ocr_parcels)
@@ -106,7 +118,7 @@ class Georeferencer(object):
                     thresh.seek(page_num)
                     meta_json = thresh.tag_v2[270]
                     meta = json.loads(meta_json)
-                    page_key = self.page_key(meta)
+                    page_key = self._page_key(meta)
                     start_time = datetime.now(timezone.utc)
                     start_timestamp = start_time.isoformat()
                     log.write(f"#### Cadaref {meta_json}\n")
@@ -166,26 +178,62 @@ class Georeferencer(object):
                         min_y=center_y - search_radius,
                         max_y=center_y + search_radius,
                     )
-                    geo_points = self.quad_tree.within_bb(search_bbox)
+                    points = self.quad_tree.within_bb(search_bbox)
                     log.write(f"search_radius: {search_radius}\n")
                     log.write(f"search_bbox: {search_bbox}\n")
-                    log.write("num_geo_points: %d\n" % len(geo_points))
-
-                    # TODO: Pass everything to cadaref tool
-                    print(
-                        "*** ZEBRA-B",
-                        mutation,
-                        search_bbox,
-                        scale,
-                        len(symbols),
-                        len(geo_points),
-                    )
-
+                    log.write("num_points: %d\n" % len(points))
                     log.write(f"scale: {scale}\n")
-
-                    # print(scan, scan_page, scale, len(symbols), max_x - min_x, max_y-min_y)
-
-            self._write_log(mutation, log.getvalue())
+                    with tempfile.TemporaryDirectory() as tmp:
+                        points_csv_path = os.path.join(tmp, "points.csv")
+                        symbols_csv_path = os.path.join(tmp, "symbols.csv")
+                        out_path = os.path.join(tmp, "out.tif")
+                        # points_csv_path = "xx-points.csv"
+                        # symbols_csv_path = "xx-symbols.csv"
+                        self._write_points_csv(points, points_csv_path)
+                        self._write_symbols_csv(symbols, symbols_csv_path)
+                        cmd = [
+                            self.cadaref_tool,
+                            "--points",
+                            points_csv_path,
+                            "--symbols",
+                            symbols_csv_path,
+                            "--page",
+                            str(page_num + 1),
+                            rendered_path,
+                            "--output",
+                            out_path,
+                        ]
+                        cadaref_start = time.time()
+                        proc = subprocess.run(cmd, capture_output=True)
+                        log.write(
+                            "cadaref_runtime_seconds: %03f\n"
+                            % (time.time() - cadaref_start)
+                        )
+                        log.write(f"cadaref_return_code: {proc.returncode}\n")
+                        if proc.stdout:
+                            log.write('cadaref_stdout: """\n')
+                            log.write(proc.stdout.decode("utf-8"))
+                            log.write('"""\n')
+                        if proc.stderr:
+                            log.write('cadaref_stderr: """\n')
+                            log.write(proc.stderr.decode("utf-8"))
+                            log.write('"""\n')
+                        if proc.returncode == 0 and os.path.exists(out_path):
+                            num_plans += 1
+                            if num_plans == 1:
+                                filename = f"{mutation}.tif"
+                            else:
+                                filename = f"{mutation}_{num_plans}.tif"
+                            geotiff_path = os.path.join(self.out_dir, filename)
+                            os.rename(out_path, geotiff_path)
+                            log.write(f"wrote {geotiff_path}\n")
+                            log.write("status: success\n")
+                        else:
+                            log.write("status: could not match")
+        end_time = datetime.now(timezone.utc)
+        end_timestamp = end_time.isoformat()
+        log.write(f"end_timestamp: {end_timestamp}\n")
+        self._write_log(mutation, log.getvalue())
 
     # Compute a look-up key for a scanned page from a metadata record,
     # for example:
@@ -200,21 +248,47 @@ class Georeferencer(object):
     # need to reconstruct the page kay before splitting. For example,
     # pages "7L" and "7R" both have page number 7 in the view of OCR.
     @staticmethod
-    def page_key(meta):
+    def _page_key(meta):
         scan, scan_page = meta["scan"], meta["scan_page"]
         if scan_page[-1] in {"L", "R"}:
             return (scan, int(scan_page[:-1]))
         else:
             return (scan, int(scan_page))
 
+    # Write a CSV file with geographic points as input for
+    # the cadaref tool, which does the actual georeferencing.
     @staticmethod
-    def _write_log(mutation, message):
+    def _write_points_csv(points, path):
+        with open(path, "w") as out:
+            writer = csv.DictWriter(out, ["id", "x", "y", "symbol"])
+            writer.writeheader()
+            for p in points:
+                writer.writerow(
+                    {
+                        "id": p.data.id,
+                        "x": p.data.x,
+                        "y": p.data.y,
+                        "symbol": p.data.symbol,
+                    }
+                )
+
+    # Write a CSV file with detected map symbols as input for
+    # the cadaref tool, which does the actual georeferencing.
+    @staticmethod
+    def _write_symbols_csv(symbols, path):
+        with open(path, "w") as out:
+            writer = csv.DictWriter(out, ["x", "y", "symbol"])
+            writer.writeheader()
+            for x, y, symbol in symbols:
+                writer.writerow({"x": x, "y": y, "symbol": symbol})
+
+    def _write_log(self, mutation, message):
         # We write the log to a temporary file (with a different name),
         # which is not an atomic operation and could be interrupted.
         # Once the log file is completely written to disk, we rename
         # the temporary file to the final file name in an atomic operation.
         # This ensures we don't end up with partially written log files.
-        log_path = os.path.join("georeferenced", f"{mutation}.log")
+        log_path = os.path.join(self.out_dir, f"{mutation}.log")
         tmp_path = log_path + ".tmp"
         with open(tmp_path, "w") as f:
             f.write(message)
@@ -275,13 +349,13 @@ class Georeferencer(object):
         path = os.path.join(os.path.dirname(__file__), "deleted_points.csv")
         with open(path) as fp:
             for rec in csv.DictReader(fp):
-                style = DELETED_POINT_STYLES.get(rec["Kl"], "other")
+                symbol = DELETED_POINT_SYMBOLS.get(rec["Kl"], "other")
                 points.append(
                     DeletedPoint(
                         id=rec["Punktnummer"],
                         x=float(rec["X [LV95]"]),
                         y=float(rec["Y [LV95]"]),
-                        style=style,
+                        symbol=symbol,
                         created_by=rec["Erstellmutation"],
                         deleted_by=rec["Löschmutation"],
                     )
@@ -293,10 +367,10 @@ class Georeferencer(object):
         path = os.path.join("survey_data", "border_points.csv")
         with open(path) as fp:
             for rec in csv.DictReader(fp):
-                if style := BORDER_POINT_STYLES.get(rec["type"]):
+                if symbol := BORDER_POINT_SYMBOLS.get(rec["type"]):
                     yield BorderPoint(
                         id=rec["point"],
-                        style=style,
+                        symbol=symbol,
                         x=float(rec["x"]),
                         y=float(rec["y"]),
                         created=rec["created"],
@@ -309,7 +383,7 @@ class Georeferencer(object):
             for rec in csv.DictReader(fp):
                 yield FixedPoint(
                     id=rec["point"],
-                    style="double_white_circle",
+                    symbol="double_white_circle",
                     x=float(rec["x"]),
                     y=float(rec["y"]),
                     created=rec["created"],
@@ -451,9 +525,25 @@ class Georeferencer(object):
 
 
 if __name__ == "__main__":
+    argparser = argparse.ArgumentParser("georeference")
+    argparser.add_argument(
+        "--cadaref_tool",
+        default="~/src/cadaref/target/release/cadaref-match",
+    )
+    args = argparser.parse_args()
+
+    cadaref_tool = os.path.expanduser(args.cadaref_tool)
+    if not os.path.exists(cadaref_tool):
+        print(
+            "please compile the cadaref tool from source "
+            "[https://github.com/brawer/cadaref] and pass the path "
+            "to the compiled cadaref-match binary as --cadaref_tool",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     PIL.Image.MAX_IMAGE_PIXELS = None
-    os.makedirs("georeferenced", exist_ok=True)
-    ref = Georeferencer()
+    ref = Georeferencer(cadaref_tool, "georeferenced")
     mutations = set(f.rsplit(".", 1)[0] for f in os.listdir("rendered"))
     # mutations = {m for m in mutations if m[0] not in {"2", "3"}}
     for mut in sorted(mutations):
