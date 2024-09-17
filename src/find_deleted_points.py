@@ -1,9 +1,16 @@
 # SPDX-FileCopyrightText: 2024 Sascha Brawer <sascha@brawer.ch>
 # SPDX-License-Identifier: MIT
 
-# Finds deleted points in GEOS Pro mutations, by extracting
-# deletion records from OCR embedded in scan PDFs.
-# Scans before GEOS (sadly) do not contain deletion records,
+# Find deleted points in scanned GEOS Pro mutation files.
+#
+# This script is not part of the production pipeline. It was merely
+# written  as a one-off script, to generate an initial version of
+# the file src/deletd_points.csv. However, that initial version was
+# later manually edited, reviewed and double-checked.
+#
+# The tool works by extracting deletion records from the OCRed text
+# which the City of Zürich OCR system has embedded in their scan PDFs.
+# The mutation documents before GEOS do not contain deletion records,
 # so this script does not process those.
 
 import csv
@@ -12,6 +19,10 @@ import re
 import subprocess
 
 
+# Words that appear as the first word in the title of a new paragraph.
+# We stop parsing the list of deleted points when one of these words
+# starts the current text line. It's not the perfect, but seems to
+# work pretty well in practice.
 TITLE_WORDS = {
     "Geomatik",
     "ORTHOGONALE",
