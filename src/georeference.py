@@ -211,7 +211,15 @@ class Georeferencer(object):
                             out_path,
                         ]
                         cadaref_start = time.time()
-                        proc = subprocess.run(cmd, capture_output=True)
+                        try:
+                            proc = subprocess.run(
+                                cmd,
+                                capture_output=True,
+                                timeout=300,  # 5 minutes in seconds
+                            )
+                        except subprocess.TimeoutExpired:
+                            log.write("status: timeout\n")
+                            continue
                         log.write(
                             "cadaref_runtime_seconds: %03f\n"
                             % (time.time() - cadaref_start)
@@ -427,14 +435,16 @@ class Georeferencer(object):
         # Sometimes we know a mutation's coordinates from survey data,
         # such as when the current survey data contains border points
         # that have been created by a mutation.
-        if m := self.mutations.get(meta["mutation"]):
+        m = self.mutations.get(meta["mutation"])
+        if m is not None and m.min_x:
             boxes.append(m)
 
         # Another source for coordinates is the parcels that were
         # created by the mutation; some of the newly created parcels
         # may still exist today.
         for parcel in self._mutation_parcels(tiff):
-            if p := self.parcels.get(parcel):
+            p = self.parcels.get(parcel)
+            if p is not None and p.min_x:
                 boxes.append(p)
 
         # Also, the mutation PDF may contain parcel names which
@@ -447,14 +457,15 @@ class Georeferencer(object):
         # no better data source.
         if len(boxes) == 0:
             for parcel in ocr_parcels:
-                if p := self.parcels.get(parcel):
+                p = self.parcels.get(parcel)
+                if p is not None and p.min_x:
                     boxes.append(p)
 
         if len(boxes) > 0:
-            min_x = min(b.min_x for b in boxes if b.min_x)
-            max_x = max(b.max_x for b in boxes if b.max_x)
-            min_y = min(b.min_y for b in boxes if b.min_y)
-            max_y = max(b.max_y for b in boxes if b.max_y)
+            min_x = min(b.min_x for b in boxes)
+            max_x = max(b.max_x for b in boxes)
+            min_y = min(b.min_y for b in boxes)
+            max_y = max(b.max_y for b in boxes)
             return (min_x, max_x, min_y, max_y)
         else:
             return None
@@ -554,5 +565,6 @@ if __name__ == "__main__":
     ref = Georeferencer(cadaref_tool, "georeferenced")
     mutations = set(f.rsplit(".", 1)[0] for f in os.listdir("rendered"))
     # mutations = {m for m in mutations if m[0] not in {"2", "3"}}
+    # mutations = {m for m in mutations if m.startswith("AR")}
     for mut in sorted(mutations):
         ref.georeference(mut)
