@@ -34,6 +34,7 @@ OLD_MUTATIONS = {
 # For these pages, we force splitting them in half even if our auto-detection
 # of glued pages does not trigger.
 FORCE_PAGE_SPLIT = {  # key is *after* lookup in MISNAMED_SCANS
+    ("UN_Mut_20005_Kat_UN4768_j2005.pdf", 1),
     ("WI_Mut_20102_Kat_WI3981_WI3982_j2005.pdf", 1),
 }
 
