@@ -3,6 +3,7 @@
 
 from collections import namedtuple
 import csv
+from datetime import datetime, timezone
 import io
 import json
 import os
@@ -105,7 +106,11 @@ class Georeferencer(object):
                     thresh.seek(page_num)
                     meta_json = thresh.tag_v2[270]
                     meta = json.loads(meta_json)
+                    page_key = self.page_key(meta)
+                    start_time = datetime.now(timezone.utc)
+                    start_timestamp = start_time.isoformat()
                     log.write(f"#### Cadaref {meta_json}\n")
+                    log.write(f"start_timestamp: {start_timestamp}\n")
                     log.write(f"ocr_parcels: {ocr_parcels}\n")
                     log.write(f"bbox: {bbox}\n")
                     if not bbox:
@@ -123,22 +128,13 @@ class Georeferencer(object):
                         log.write("status: not enough symbols\n")
                         continue
 
-                    # Our rendering phase in src/render.py tries to
-                    # find A3 pages that have (perhaps mistakenly)
-                    # been glued together during scanning, and splits
-                    # them in a left and right half based on a
-                    # page-splitting heuristics. However, OCR does not
-                    # know about this page splitting. Therefore, for
-                    # the OCR-derived heuristics, we need to
-                    # reconstruct the page kay before splitting. For
-                    # example, pages "7L" and "7R" both have page
-                    # number 7 in the view of OCR.
-                    scan, scan_page = meta["scan"], meta["scan_page"]
-                    if scan_page[-1] in {"L", "R"}:
-                        page_key = (scan, int(scan_page[:-1]))
-                    else:
-                        page_key = (scan, int(scan_page))
-
+                    # Skip pages that appear to be screenshots of some
+                    # Microsoft Windows tool that got used in the late
+                    # 1990s and early 2000s. Our map symbol classifier
+                    # sometimes gets confused by those print-outs and
+                    # wrongly claims that those are scanned cadastral
+                    # plans, but we can easily detect such screenshots
+                    # by checking for a text marker in the OCRed page.
                     if page_key in screenshots:
                         log.write("status: screenshot\n")
                         continue
@@ -158,8 +154,9 @@ class Georeferencer(object):
                     min_x, max_x, min_y, max_y = bbox
                     width_m = max(width_m, max_x - min_x)
                     height_m = max(height_m, max_y - min_y)
-                    center_x = min_x + (max_x - min_y) / 2
+                    center_x = min_x + (max_x - min_x) / 2
                     center_y = min_y + (max_y - min_y) / 2
+
                     # We don't know the plan rotation, so we take the max
                     # of width and height. Typical search radius is ~3.5 km.
                     search_radius = max(width_m, height_m) / 2
@@ -169,17 +166,46 @@ class Georeferencer(object):
                         min_y=center_y - search_radius,
                         max_y=center_y + search_radius,
                     )
+                    geo_points = self.quad_tree.within_bb(search_bbox)
                     log.write(f"search_radius: {search_radius}\n")
                     log.write(f"search_bbox: {search_bbox}\n")
-                    # TODO: Look up search_bbox in quadtree
+                    log.write("num_geo_points: %d\n" % len(geo_points))
+
                     # TODO: Pass everything to cadaref tool
-                    print("*** ZEBRA-B", mutation, search_bbox, scale, len(symbols))
+                    print(
+                        "*** ZEBRA-B",
+                        mutation,
+                        search_bbox,
+                        scale,
+                        len(symbols),
+                        len(geo_points),
+                    )
 
                     log.write(f"scale: {scale}\n")
 
                     # print(scan, scan_page, scale, len(symbols), max_x - min_x, max_y-min_y)
 
             self._write_log(mutation, log.getvalue())
+
+    # Compute a look-up key for a scanned page from a metadata record,
+    # for example:
+    #
+    #     {"scan": "foo.pdf", "scan_page": "7L", ...} -> ("foo.pdf", 7)
+    #
+    # Our rendering phase in src/render.py tries to find A3 pages that
+    # have (perhaps mistakenly) been glued together during scanning,
+    # and splits them in a left and right half based on a
+    # page-splitting heuristics. However, OCR does not know about this
+    # page splitting. Therefore, for the OCR-derived heuristics, we
+    # need to reconstruct the page kay before splitting. For example,
+    # pages "7L" and "7R" both have page number 7 in the view of OCR.
+    @staticmethod
+    def page_key(meta):
+        scan, scan_page = meta["scan"], meta["scan_page"]
+        if scan_page[-1] in {"L", "R"}:
+            return (scan, int(scan_page[:-1]))
+        else:
+            return (scan, int(scan_page))
 
     @staticmethod
     def _write_log(mutation, message):
