@@ -250,7 +250,7 @@ class Georeferencer(object):
                             log.write(f"wrote {geotiff_path}\n")
                             log.write("status: success\n")
                         else:
-                            log.write("status: could not match")
+                            log.write("status: could not match\n")
         log.write(f"num_plans: {num_plans}\n")
         end_time = datetime.now(timezone.utc)
         end_timestamp = end_time.isoformat()
