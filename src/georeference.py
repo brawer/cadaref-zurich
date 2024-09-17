@@ -105,6 +105,12 @@ class Georeferencer(object):
         self.quad_tree = self._build_quad_tree(points)
 
     def georeference(self, mutation):
+        # We use the presence of a log file as a checkpoint to indicate
+        # which mutations have already been processed.
+        log_path = os.path.join(self.out_dir, f"{mutation}.log")
+        if os.path.exists(log_path):
+            return
+
         print(f"georeferencing {mutation}")
         log = io.StringIO()
         rendered_path = os.path.join("rendered", f"{mutation}.tif")
