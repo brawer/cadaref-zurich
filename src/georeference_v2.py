@@ -1,6 +1,13 @@
 # SPDX-FileCopyrightText: 2024 Sascha Brawer <sascha@brawer.ch>
 # SPDX-License-Identifier: MIT
 
+# Tool for georeferencing scanned cadaster mutation files
+# of the City of Zürich. The tool is basically a wrapper
+# around another tool, “cadaref”, that does the actual
+# georeferencing given a set of map symbols and a set of
+# geographic points at known locations; this tool here
+# contains the pieces that are specific to the Zürich project.
+
 import argparse
 import csv
 import io
@@ -230,6 +237,7 @@ class Georeferencer(object):
                             log.write("status: success\n")
                         else:
                             log.write("status: could not match")
+        log.write(f"num_plans: {num_plans}\n")
         end_time = datetime.now(timezone.utc)
         end_timestamp = end_time.isoformat()
         log.write(f"end_timestamp: {end_timestamp}\n")

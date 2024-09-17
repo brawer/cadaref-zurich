@@ -5,6 +5,7 @@
 __pycache__
 /venv/
 /datestamps/
+/georeferenced/
 /scanned/
 /rendered/
 /survey_data/
