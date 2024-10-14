@@ -11,6 +11,8 @@ import tempfile
 
 import PIL.Image
 
+from threshold import threshold
+
 # Regular expression to extract mutaton dates.
 DATE_PATTERN = re.compile(r".+_[jJ](\d{4})([-_](\d{2})[-_](\d{2}))?.*\.pdf$")
 
@@ -61,7 +63,18 @@ class Mutation(object):
             if self.date:
                 for page in pages:
                     self.set_tiff_date(os.path.join(temp, page))
-            cmd = ["tiffcp", "-t", "-w", "512", "-l", "512", "-c", "zip"]
+            cmd = [
+                "tiffcp",
+                "-m",  # no memory restrictions
+                "0",
+                "-t",  # 512x512 pixel tiles
+                "-w",
+                "512",
+                "-l",
+                "512",
+                "-c",  # deflate/zip compression
+                "zip",
+            ]
             cmd.extend(pages)
             cmd.append(tiff_path + ".tmp")
             proc = subprocess.run(cmd)  # output file not atomically written
