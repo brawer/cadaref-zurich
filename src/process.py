@@ -26,7 +26,8 @@ class Mutation(object):
 
     def process(self):
         print(f"Starting {self.id}")
-        self.pdf_to_text()
+        text = self.pdf_to_text()
+        parcels = self.extract_parcels(text)
         self.pdf_to_tiff()
         self.threshold()
         print(f"Finished {self.id}")
@@ -96,6 +97,12 @@ class Mutation(object):
         threshold(in_path, path + ".tmp")  # not atomic
         os.rename(path + ".tmp", path)  # atomic
         return path
+
+    def extract_parcels(self, text):
+        p = set(re.findall(r'\b([23]\d{4}|[A-Z]{2}\d+)\b', '\n'.join(text)))
+        for path in self.scans:
+            p.update(set(re.findall(r'[A-Z]{2}\d+', path)))
+        return p
 
 
 def process_batch(scans, workdir):
