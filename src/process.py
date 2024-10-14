@@ -26,8 +26,9 @@ class Mutation(object):
 
     def process(self):
         print(f"Starting {self.id}")
-        _ = self.pdf_to_text()
-        _ = self.pdf_to_tiff()
+        self.pdf_to_text()
+        self.pdf_to_tiff()
+        self.threshold()
         print(f"Finished {self.id}")
 
     def pdf_to_text(self):
@@ -87,10 +88,26 @@ class Mutation(object):
         proc = subprocess.run(["tiffset", "-s", "306", tiff_date, path])
         assert proc.returncode == 0, (path, proc.returncode)
 
+    def threshold(self):
+        path = os.path.join(self.workdir, "thresholded", f"{self.id}.tif")
+        if os.path.exists(path):
+            return path
+        in_path = os.path.join(self.workdir, "rendered", f"{self.id}.tif")
+        threshold(in_path, path + ".tmp")  # not atomic
+        os.rename(path + ".tmp", path)  # atomic
+        return path
+
 
 def process_batch(scans, workdir):
     os.makedirs(workdir, exist_ok=True)
-    for dirname in ("text", "rendered", "georeferenced", "logs"):
+    for dirname in (
+        "text",
+        "rendered",
+        "georeferenced",
+        "logs",
+        "thresholded",
+        "symbols",
+    ):
         os.makedirs(os.path.join(workdir, dirname), exist_ok=True)
     work = find_work(scans, workdir)
     with multiprocessing.Pool() as pool:

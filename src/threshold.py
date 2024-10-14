@@ -28,7 +28,6 @@ OUTPUT_DPI = 600
 
 
 def threshold(in_path, out_path):
-    print("thresholding", in_path)
     # As of July 2024, the pillow library is able to write multi-page TIFFs,
     # but tiling does not seem to be implemented. Therefore we write out
     # an untiled multi-page TIFF and then run the `tiffcp` command to
@@ -45,7 +44,8 @@ def threshold(in_path, out_path):
                 PIL.TiffImagePlugin._save(page, out_tiff, tmp_path)
                 out_tiff.newFrame()
         cmd = ["tiffcp", "-t", "-w", "512", "-l", "512", tmp_path, out_path]
-        subprocess.run(cmd)
+        proc = subprocess.run(cmd)
+        assert proc.returncode == 0, cmd
 
 
 def threshold_page(in_path, tiff, page_num):
