@@ -11,6 +11,7 @@ import tempfile
 
 import PIL.Image
 
+from mutation_dates import dates as mutation_dates
 from threshold import threshold
 
 # Regular expression to extract mutaton dates.
@@ -132,7 +133,6 @@ def find_work(scans, workdir):
     logs_path = os.path.join(workdir, "logs")
     done = {os.path.splitext(f) for f in os.listdir(logs_path)}
     work = []
-    mut_dates_overwrites = read_mutation_dates()
     unexpected_filenames = set()
     dates = {}  # mutation id -> date
     paths = {}  # mutation id -> [path to pdf, path to pdf, ...]
@@ -146,7 +146,7 @@ def find_work(scans, workdir):
                 unexpected_filenames.add(path)
                 continue
             paths.setdefault(id, []).append(path)
-            date = mut_dates_overwrites.get(id, extract_mutation_date(name))
+            date = mutation_dates.get(id, extract_mutation_date(name))
             dates.setdefault(id, date)
     for id in sorted(paths.keys()):
         if id not in done:
