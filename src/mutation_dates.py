@@ -22,5 +22,5 @@ def _read_mutation_dates():
                 dates[row["mutation"]] = d
     return dates
 
-dates = _read_mutation_dates()
 
+dates = _read_mutation_dates()
