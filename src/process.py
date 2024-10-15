@@ -25,6 +25,11 @@ class Mutation(object):
         self.workdir = workdir
 
     def process(self):
+        # Allow images of arbitrary size. The Python multiprocessing library
+        # spawns its worker processes without going through our main method,
+        # so we need to set this global configuration here, in the per-process
+        # runner.
+        PIL.Image.MAX_IMAGE_PIXELS = None
         print(f"Starting {self.id}")
         text = self.pdf_to_text()
         parcels = self.extract_parcels(text)
@@ -99,9 +104,9 @@ class Mutation(object):
         return path
 
     def extract_parcels(self, text):
-        p = set(re.findall(r'\b([23]\d{4}|[A-Z]{2}\d+)\b', '\n'.join(text)))
+        p = set(re.findall(r"\b([23]\d{4}|[A-Z]{2}\d+)\b", "\n".join(text)))
         for path in self.scans:
-            p.update(set(re.findall(r'[A-Z]{2}\d+', path)))
+            p.update(set(re.findall(r"[A-Z]{2}\d+", path)))
         return p
 
 
@@ -214,7 +219,6 @@ def list_rendered_pages(dirpath):
 
 
 if __name__ == "__main__":
-    PIL.Image.MAX_IMAGE_PIXELS = None
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--scans", default="scans", help="path to input scans to be processed"
