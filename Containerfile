@@ -16,7 +16,7 @@ FROM alpine:3.20
 RUN apk add --no-cache  \
     gdal  \
 	poppler-utils  \
-	python3 py3-numpy py3-opencv py-pillow  \
+	python3 py3-numpy py3-opencv py3-pillow  \
 	tiff-tools
 
 WORKDIR /home/cadaref
