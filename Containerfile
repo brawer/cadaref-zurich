@@ -27,4 +27,4 @@ COPY  \
     /usr/local/bin/cadaref-match
 
 COPY src /home/cadaref/src
-
+COPY survey_data /home/cadaref/survey_data
