@@ -13,6 +13,7 @@ import PIL.Image
 
 from mutation_dates import dates as mutation_dates
 from threshold import threshold
+from util import din_format
 
 # Regular expression to extract mutaton dates.
 DATE_PATTERN = re.compile(r".+_[jJ](\d{4})([-_](\d{2})[-_](\d{2}))?.*\.pdf$")
@@ -34,7 +35,7 @@ class Mutation(object):
         print(f"Starting {self.id}")
         text = self.pdf_to_text()
         parcels = self.extract_parcels(text)
-        self.pdf_to_tiff()
+        self.pdf_to_tiff(text)
         self.threshold()
         print(f"Finished {self.id}")
 
@@ -48,7 +49,7 @@ class Mutation(object):
                     capture_output=True,
                 )
                 assert proc.returncode == 0, (pdf_path, proc.returncode)
-                text = proc.stdout.decode("utf-8")
+                text = proc.stdout.decode("utf-8").rstrip("\u000C")
                 pages.extend(text.split("\u000C"))
             with open(text_path + ".tmp", "w") as fp:
                 fp.write("\u000C".join(pages))  # not an atomic operation
@@ -56,7 +57,7 @@ class Mutation(object):
         with open(text_path, "r") as fp:
             return fp.read().split("\u000C")
 
-    def pdf_to_tiff(self):
+    def pdf_to_tiff(self, text):
         tiff_path = os.path.join(self.workdir, "rendered", f"{self.id}.tif")
         if os.path.exists(tiff_path):
             return tiff_path
@@ -71,6 +72,10 @@ class Mutation(object):
             if self.date:
                 for page in pages:
                     self.set_tiff_date(os.path.join(temp, page))
+            assert len(pages) == len(text), self.id
+            split_pages = []
+            for page_path, page_text in zip(pages, text):
+                split_pages.extend(maybe_split_page(page_path, page_text))
             cmd = [
                 "tiffcp",
                 "-m",  # no memory restrictions
@@ -83,7 +88,7 @@ class Mutation(object):
                 "-c",  # deflate/zip compression
                 "zip",
             ]
-            cmd.extend(pages)
+            cmd.extend(split_pages)
             cmd.append(tiff_path + ".tmp")
             proc = subprocess.run(cmd)  # output file not atomically written
             assert proc.returncode == 0, (cmd, proc.returncode)
@@ -196,15 +201,6 @@ def extract_mutation_date(filename):
     return None
 
 
-def read_mutation_dates():
-    dates = {}
-    path = os.path.join(os.path.dirname(__file__), "mutation_dates.csv")
-    with open(path) as fp:
-        for row in csv.DictReader(fp):
-            dates[row["mutation"]] = row["date"]
-    return dates
-
-
 PDFCAIRO_FILENAME_PATTERN = re.compile(r"^S(\d+)-(\d+)\.tif$")
 
 
@@ -216,6 +212,27 @@ def list_rendered_pages(dirpath):
             pages.append((int(scan), int(page), os.path.join(dirpath, f)))
     pages.sort()
     return [f for _scan, _page, f in pages]
+
+
+def maybe_split_page(img_path, text):
+    # Quite often, two pages are scanned as one, so we have the plan
+    # either on the left or the right half. Initially, we tried all kinds
+    # of complicated heuristics to figure out whether the page needs splitting,
+    # including layout analysis and detection of punch holes by means of
+    # computer vision. However, simply looking for "Tabelle" or "tabelle"
+    # in the plaintext (that was extracted through OCR) seems to work best.
+    # Initially, we restricted the splitting to DIN A3 pages in landscape
+    # orientation, but it turned out that (especially older) scans are
+    # in a different format but still need to be split.
+    if "Tabelle" not in text and "tabelle" not in text:
+        return [img_path]
+    with PIL.Image.open(img_path) as img:
+        mid = img.width // 2
+        p = os.path.splitext(img_path)[0]
+        paths = [f"{p}_left.tif", f"{p}_right.tif"]
+        img.crop((0, 0, mid, img.height)).save(paths[0])
+        img.crop((mid, 0, img.width, img.height)).save(paths[1])
+        return paths
 
 
 if __name__ == "__main__":
