@@ -47,6 +47,7 @@ jobs:
         with:
           context: .
           file: Containerfile
+          sbom: true
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
