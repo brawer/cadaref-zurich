@@ -7,7 +7,8 @@
 FROM alpine:3.20 AS cadaref-builder
 RUN apk add --no-cache cargo gdal-dev git rust
 WORKDIR /home/builder
-RUN git clone https://github.com/brawer/cadaref.git
+RUN git clone --branch v0.1.1 --depth 1 --config advice.detachedHead=false \
+    https://github.com/brawer/cadaref.git
 RUN cd cadaref && cargo build --release && cargo test --release
 
 FROM alpine:3.20
