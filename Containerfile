@@ -6,7 +6,7 @@
 # Build configuration for a Linux Container to automatically georeference
 # scanned historical maps (cadastral mutation plans) of the City of Zürich.
 
-FROM alpine:3.20 AS cadaref-builder
+FROM alpine:3.20.3 AS cadaref-builder
 ARG BUILDKIT_SBOM_SCAN_STAGE=true
 RUN apk add --no-cache cargo gdal-dev git rust
 WORKDIR /home/builder
@@ -14,7 +14,7 @@ RUN git clone --branch v0.1.1 --depth 1 --config advice.detachedHead=false \
     https://github.com/brawer/cadaref.git
 RUN cd cadaref && cargo build --release && cargo test --release
 
-FROM alpine:3.20
+FROM alpine:3.20.3
 
 RUN apk add --no-cache  \
         gdal  \
