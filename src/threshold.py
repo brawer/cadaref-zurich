@@ -17,7 +17,6 @@ import json
 import os
 import subprocess
 import tempfile
-import warnings
 
 import cv2
 import numpy
@@ -83,7 +82,6 @@ def threshold_page(in_path, tiff, page_num):
             "method": "cv2.BINARY",
         }
         t, thresh = cv2.threshold(gray, new_t, 255, cv2.THRESH_BINARY)
-        warnings.warn("fixing up thresholding: %s" % in_path)
 
     bw = PIL.Image.fromarray(thresh).convert("1")
     bw.encoderconfig = ()
