@@ -1,12 +1,11 @@
-*.gpkg
-*.gpkg-shm
-*.gpkg-wal
+# SPDX-FileCopyrightText: 2024 Sascha Brawer <sascha@brawer.ch>
+# SPDX-License-Identifier: MIT
+#
+# Git configuration to ignore temporary files
+
 *~
 __pycache__
-/venv/
-/datestamps/
-/georeferenced/
-/scanned/
-/rendered/
-/thresholded/
+/scans/
 /tmp/
+/venv/
+/workdir/
