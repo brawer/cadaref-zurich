@@ -17,17 +17,19 @@ RUN cd cadaref && cargo build --release && cargo test --release
 FROM alpine:3.20
 
 RUN apk add --no-cache  \
-    gdal  \
-    poppler-utils  \
-    python3 py3-numpy py3-opencv py3-pillow  \
-    tiff-tools
-
-WORKDIR /home/cadaref
+        gdal  \
+        poppler-utils  \
+        python3 py3-numpy py3-opencv py3-pillow  \
+        tiff-tools
 
 COPY  \
     --from=cadaref-builder  \
     /home/builder/cadaref/target/release/cadaref-match  \
     /usr/local/bin/cadaref-match
+
+RUN adduser -S cadaref
+USER cadaref
+WORKDIR /home/cadaref
 
 COPY src /home/cadaref/src
 COPY survey_data /home/cadaref/survey_data
