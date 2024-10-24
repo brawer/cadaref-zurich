@@ -48,14 +48,14 @@ Recognition (OCR). To produce its archival PDF/A files, the document scanning
 center of the City of Zürich happened to run [Kodak Capture Pro](https://support.alarisworld.com/en-us/capture-pro-software).
 While developing the cadastral georeferencing pipeline,
 we had evaluated various other OCR systems:
-([Tesseract](https://tesseract-ocr.github.io/tessdoc/),
+[Tesseract](https://tesseract-ocr.github.io/tessdoc/),
 [Jaided EasyOCR](https://www.jaided.ai/easyocr_enterprise/),
 [Microsoft Document Intelligence](https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/prebuilt/read),
 [Apple Vision API](https://developer.apple.com/documentation/vision),
 [Google Document AI](https://cloud.google.com/document-ai),
-and [Amazon Textract](https://aws.amazon.com/textract/)).
-Perhaps surprisingly, the OCR engine in Kodak Capture Pro
-gave the best quality for Zürich’s historical cadastral plans.
+and [Amazon Textract](https://aws.amazon.com/textract/).
+Somewhat surprisingly, the OCR engine of Kodak Capture Pro
+appears to give the best quality for Zürich’s historical cadastral plans.
 Therefore, the current version of the pipeline simply extracts
 the embedded plaintext that Kodak Capture Pro stored in the PDF/A input,
 with [Poppler](https://poppler.freedesktop.org/) for layout analysis.
