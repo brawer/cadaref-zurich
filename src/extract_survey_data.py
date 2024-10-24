@@ -1,16 +1,25 @@
 # SPDX-FileCopyrightText: 2024 Sascha Brawer <sascha@brawer.ch>
 # SPDX-License-Identifier: MIT
 
-# Script for extracting points and parcels from the official survey.
-# The data file for the earliest available year (2007( can be retrieved here:
+# Script for extracting points and parcels from the official survey data.
+#
+# To re-generate the contents of the survey_data directory, do this:
+#
+# 1. Request the earliest available dataset (December 2007) of the
+#    Zürich land survey from the city’s open data portal.
 #
 #     https://www.stadt-zuerich.ch/geodaten/download/
 #     Amtliche_Vermessungsdaten_Stadt_Zuerich_Jahresendstand_2007
 #
-# Choose Ausschnitt="Gesamter Datensatz" and Format="GeoPackage"
-# and enter your e-mail address; you'll receive a download link
-# with the full survey data. Rename the data file to "av2007.gpkg"
-# and then run this script to produce "points.csv" and "parcels.csv".
+# 2. Choose Ausschnitt="Gesamter Datensatz" and Format="GeoPackage".
+#
+# 3. Enter your e-mail address into the Open Data portal and wait for
+#    the confirmation e-mail. You'll receive a download link.
+#
+# 4. Save the downloaded GeoPackage as "av2007.gpkg".
+#
+# 5. Run this script to re-generate the contents of the "survey_data"
+#    directory.
 
 import csv
 import os
