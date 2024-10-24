@@ -26,12 +26,12 @@ import PIL.TiffImagePlugin
 OUTPUT_DPI = 600
 
 
-def threshold(in_path, out_path):
+def threshold(in_path, tmpdir_path, out_path):
     # As of July 2024, the pillow library is able to write multi-page TIFFs,
     # but tiling does not seem to be implemented. Therefore we write out
     # an untiled multi-page TIFF and then run the `tiffcp` command to
     # produce a tiled image.
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory(dir=tmpdir_path, delete=True) as tmp:
         tmp_path = os.path.join(tmp, "t.tif")
         with open(tmp_path, "w+b") as fp, PIL.TiffImagePlugin.AppendingTiffWriter(
             fp
@@ -103,11 +103,9 @@ def threshold_page(in_path, tiff, page_num):
 if __name__ == "__main__":
     PIL.Image.MAX_IMAGE_PIXELS = None
     os.makedirs("thresholded", exist_ok=True)
+    os.makedirs("tmp", exist_ok=True)
     for f in sorted(os.listdir("rendered")):
-        # mutation = f.split(".")[0]
-        # if mutation not in {"AA3008", "AA3009", "FL2005", "FL1929", "OB2432"}:
-        #     continue
         in_path = os.path.join("rendered", f)
         out_path = os.path.join("thresholded", f)
         if not os.path.exists(out_path):
-            threshold(in_path, out_path)
+            threshold(in_path, "tmp", out_path)

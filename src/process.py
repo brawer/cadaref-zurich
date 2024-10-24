@@ -106,7 +106,8 @@ class Mutation(object):
         if os.path.exists(path):
             return path
         in_path = os.path.join(self.workdir, "rendered", f"{self.id}.tif")
-        threshold(in_path, path + ".tmp")  # not atomic
+        tmp_dir = os.path.join(self.workdir, "tmp")
+        threshold(in_path, tmp_dir, path + ".tmp")  # not atomic
         os.rename(path + ".tmp", path)  # atomic
         return path
 
