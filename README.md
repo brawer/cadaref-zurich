@@ -46,35 +46,46 @@ The pipeline consists of the following stages:
 plaintext for every mutation as found by means of Optical Character
 Recognition (OCR). To produce its archival PDF/A files, the document scanning
 center of the City of Zürich happened to run [Kodak Capture Pro](https://support.alarisworld.com/en-us/capture-pro-software).
-While developing the cadastral georeferencing pipeline,
-we had evaluated various other OCR systems:
+While developing this pipeline for georeferencing historical cadastral plans,
+we evaluated various alternative OCR systems:
 [Tesseract](https://tesseract-ocr.github.io/tessdoc/),
 [Jaided EasyOCR](https://www.jaided.ai/easyocr_enterprise/),
 [Microsoft Document Intelligence](https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/prebuilt/read),
 [Apple Vision API](https://developer.apple.com/documentation/vision),
 [Google Document AI](https://cloud.google.com/document-ai),
 and [Amazon Textract](https://aws.amazon.com/textract/).
-Somewhat surprisingly, the OCR engine of Kodak Capture Pro
-appears to give the best quality for Zürich’s historical cadastral plans.
+However, the OCR engine of Kodak Capture Pro
+gave  the best quality for the input dataset.
 Therefore, the current version of the pipeline simply extracts
-the embedded plaintext that Kodak Capture Pro stored in the PDF/A input,
-with [Poppler](https://poppler.freedesktop.org/) for layout analysis.
+the embedded plaintext from the PDF/A input. For PDF parsing
+and layout analysis, is uses the [Poppler](https://poppler.freedesktop.org/)
+library.
 
 2. **Rendering:** In `workdir/rendered`, the pipeline stores a
 tiled, zip-compressed, multi-page color TIFF image for every mutation dossier.
-Sometimes, a single scanned page contains a mutation plan next to a table
-or some text. Initially, we had used image analysis to detect this situation,
-but ultimately we settled on looking for certain keywords in the recognized
-text.
+Sometimes, a single scanned page contains a mutation plan that was glued
+next to a table or some text. In its rendering stage, the pipeline detetects
+such glued-together pages and vertically splits them in two halves.
+Initially, we had used (rather complex) image analysis to detect this
+situation. Ultimately, however, we settled on looking for certain keywords
+in the OCRed text.
 
 3. **Thresholding:** In `workdir/thresholded`, the pipeline stores
 a thresholded (binarized) version of the rendered image as a tiled,
-telefax-compressed, multi-page, black-and-white TIFF image. The threshold
-value is automatically chosen by means of the classic [Ōtsu method](https://en.wikipedia.org/wiki/Otsu%27s_method). However, the mutation plan archive
-contains some scans where the Ōtsu method did not perform very well;
-the pipeline detects this and applies a custom workaround.
+multi-page, black-and-white TIFF image in [group 4 compression](https://en.wikipedia.org/wiki/Group_4_compression). The pipeline chooses a suitable
+threshold for each page by means of the classic [Ōtsu method](https://en.wikipedia.org/wiki/Otsu%27s_method). However, the mutation plan archive
+contains a handful of very dark scans where the Ōtsu method did not
+perform well. The pipeline detects this case and applies a custom
+workaround to handle it.
 
-4. TODO: Continue description.
+4. **Symbol recognition:** In `workdir/symbols`, the pipeline stores...
+
+5. **Survey data extraction:** In `workdir/points`, the pipeline stores...
+
+6. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
+
+The pipeline utilizes all available CPU cores. On a multi-core machine,
+several mutation dossers are getting processed in parallel.
 
 
 ## License
