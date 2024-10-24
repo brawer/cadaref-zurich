@@ -84,8 +84,8 @@ workaround to handle it.
 
 6. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
 
-The pipeline utilizes all available CPU cores. On a multi-core machine,
-several mutation dossers are getting processed in parallel.
+On a multi-core machine, the pipeline will process several mutation files
+in parallel.
 
 
 ## License
