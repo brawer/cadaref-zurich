@@ -84,6 +84,12 @@ workaround to handle it.
 
 6. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
 
+In `workdir/tmp`, the pipeline stores temporary files. We do not use `/tmp`
+because some of our temporary files can be very large, and we do not
+want to exhaust physical memory in case `/tmp` happens to be implemented
+by a [tmpfs file system](https://en.wikipedia.org/wiki/Tmpfs) on the
+worker machine.
+
 On a multi-core machine, the pipeline will process several mutation files
 in parallel.
 
