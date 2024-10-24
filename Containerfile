@@ -33,3 +33,5 @@ WORKDIR /home/cadaref
 
 COPY src /home/cadaref/src
 COPY survey_data /home/cadaref/survey_data
+
+CMD ["python", "src/process.py"]
