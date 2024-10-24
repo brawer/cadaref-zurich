@@ -1,9 +1,24 @@
 # Survey data
 
-The files in this directory have been extracted from the
-cadastral database of 2007, which the City of Zürich released
-on its Open Data portal under the Creative Commons Zero (CC0-1.0)
-license.
+The files in this directory have been extracted from
+[Amtliche Vermessungsdaten Stadt Zürich Jahresendstand 2007](https://data.stadt-zuerich.ch/dataset/geo_amtliche_vermessungsdaten_stadt_zuerich_jahresendstand_2007) using this [extraction script](../src/extract_survey_data.py).
+The state of December 2007 is the earliest available digital dataset.
 
-The Python script that generated the files in this directory
-is in [src/extract_survey_data.py](../src/extract_survey_data.py).
+to the extracted data in this directory. It is a bit unusual to
+package extracted data into a source code repository. However,
+as of October 2024, the upstream data (despite its CC0-1.0 license)
+cannot be accessed directly over the internet. Instead, users
+have to manually request the data package via the city’s Open Data portal,
+wait for an email, and only then they can download the data using a
+temporary link sent in the e-mail. This process does not work with
+an automated release process, so we opted to re-publish the relevant
+excerpt of the data as part of our source code repository.
+
+
+## License
+
+The upstream data is released by the City of Zürich under the
+terms of [Creative Commons CC0-1.0](LICENSE). The files in this directory
+are released under the same terms. This work is published from Switzerland.
+
+![Public Domain](https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/cc-zero.svg)
