@@ -28,26 +28,53 @@ docker run \
     ghcr.io/brawer/cadaref-zurich:latest
 ```
 
-## Output
+## Pipeline
 
-The pipeline creates a set of  sub-directories in `workdir`. The file
-names are mutation IDs in the same form as they are used in the cadastral
-survey, for example `21989` or `HG3099`. Sometimes, multiple input files
-refer to the same mutation; in that case, the pipeline assembles the parts
-into a single file for each mutation.
+The pipeline works in stages. Each stage creates a sub-directory in
+`workdir` that contains data (typically an image, text, or a CSV file)
+for every cadastral mutation. The file names are the same short
+mutation identifiers that also appear in the present-day cadastral
+database, for example `21989` or `HG3099`.  Sometimes, the scanning
+process has split a mutation file into multiple PDFs, possibly when
+the historical documents happened to get archived in separate physical
+folders. In this case, the pipeline assembles the various parts together,
+so we always have all data for a mutation in a single file.
 
-* `text`: Plaintext, extracted by means of Optical Character Recognition (OCR).
-After experiementing with various OCR systems (Tesseract, EasyOCR,
-and the commercial OCR systems from Apple, Microsoft and Google),
-we decided to simply take the text that is embedded into the PDF/A files
-because it had the best OCR quality of all tested systems.
+The pipeline consists of the following stages:
 
-* `rendered`: The input converted to tiled, compressed, multi-page
-color TIFF images.
+1. **Text extraction:** In `workdir/text`, the pipeline stores the
+plaintext for every mutation as found by means of Optical Character
+Recognition (OCR). To produce its archival PDF/A files, the document scanning
+center of the City of Zürich happened to run [Kodak Capture Pro](https://support.alarisworld.com/en-us/capture-pro-software).
+While developing the cadastral georeferencing pipeline,
+we had evaluated various other OCR systems:
+([Tesseract](https://tesseract-ocr.github.io/tessdoc/),
+[Jaided EasyOCR](https://www.jaided.ai/easyocr_enterprise/),
+[Microsoft Document Intelligence](https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/prebuilt/read),
+[Apple Vision API](https://developer.apple.com/documentation/vision),
+[Google Document AI](https://cloud.google.com/document-ai),
+and [Amazon Textract](https://aws.amazon.com/textract/)).
+Perhaps surprisingly, the OCR engine in Kodak Capture Pro
+gave the best quality for Zürich’s historical cadastral plans.
+Therefore, the current version of the pipeline simply extracts
+the embedded plaintext that Kodak Capture Pro stored in the PDF/A input,
+with [Poppler](https://poppler.freedesktop.org/) for layout analysis.
 
-* `thresholded`: The rendered files as tiled, compressed, multi-page
-black-and-white TIFF images. The threshold between black and white
-is chosen depending by means of classic [Ōtsu thresholding](https://en.wikipedia.org/wiki/Otsu%27s_method) with a custom tweaks to handle very dark scans.
+2. **Rendering:** In `workdir/rendered`, the pipeline stores a
+tiled, zip-compressed, multi-page color TIFF image for every mutation dossier.
+Sometimes, a single scanned page contains a mutation plan next to a table
+or some text. Initially, we had used image analysis to detect this situation,
+but ultimately we settled on looking for certain keywords in the recognized
+text.
+
+3. **Thresholding:** In `workdir/thresholded`, the pipeline stores
+a thresholded (binarized) version of the rendered image as a tiled,
+telefax-compressed, multi-page, black-and-white TIFF image. The threshold
+value is automatically chosen by means of the classic [Ōtsu method](https://en.wikipedia.org/wiki/Otsu%27s_method). However, the mutation plan archive
+contains some scans where the Ōtsu method did not perform very well;
+the pipeline detects this and applies a custom workaround.
+
+4. TODO: Continue description.
 
 
 ## License
