@@ -13,7 +13,7 @@ because the workstation is turned off), it will pick up its work upon
 getting started again. For security reasons, we highly recommnd to disable
 network access by passing `--network none`.
 
-````sh
+```sh
 mkdir workdir
 docker run \
     --network none   \
