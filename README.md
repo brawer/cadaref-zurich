@@ -7,8 +7,8 @@ runtime such as [Docker](https://www.docker.com/products/docker-desktop/)
 or [Podman](https://podman.io/docs/installation). Then, execute the following
 commands in a shell.
 
-Instead of `path/to/scans`, pass the file path to a directory on your
-workstation. The directory (or any of its sub-directories) should
+As `path/to/scans`, pass the file path to a directory on your
+workstation. This directory (or any of its sub-directories) should
 contain scanned cadastral plans in PDF format.
 
 The pipeline will write its intermediate files and the final output
