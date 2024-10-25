@@ -44,9 +44,11 @@ class Mutation(object):
 
         try:
             text = self.pdf_to_text()
+            self.pdf_to_tiff(text)  # modifies text in case of split pages
             parcels = self.extract_parcels(text)
-            self.pdf_to_tiff(text)
+            screenshots = self.detect_screenshots(text)
             self.threshold()
+            self.detect_symbols(screenshots)
             self.log_stage_completion("all")
             self.write_log(success=True)
             print(f"SUCCESS {self.id}")
@@ -108,9 +110,13 @@ class Mutation(object):
                 for page in pages:
                     self.set_tiff_date(page)
             assert len(pages) == len(text), self.id
-            split_pages = []
+            split_pages, split_text = [], []
             for page_path, page_text in zip(pages, text):
-                split_pages.extend(maybe_split_page(page_path, page_text))
+                split = maybe_split_page(page_path, page_text)
+                split_pages.extend(split)
+                split_text.extend([page_text] * len(split))
+            text[:] = split_text
+            print("*** ZEBRA", len(split_text), len(split_pages), len(text))
             cmd = [
                 "tiffcp",
                 "-m",  # no memory restrictions
@@ -153,6 +159,33 @@ class Mutation(object):
             p.update(set(re.findall(r"[A-Z]{2}\d+", path)))
         self.log.write("Parcels: %s\n" % ",".join(sorted(p)))
         return p
+
+    # Detect scanned pages that are screenshots of a Microsoft Windows
+    # tool, probably an Access database which the City of Zürich used
+    # in the late 1990s and early 2000s.  Our map symbol classifier
+    # sometimes gets confused by those print-outs and wrongly claims
+    # that those are scanned cadastral plans, but we can easily detect
+    # such screenshots by checking for a text marker in the OCRed
+    # page.
+    #
+    # For example, pages 12 and 13 of scan WO_Mut_20003_Kat_WO6495_j2005.pdf
+    # are screenhots of that Windows tool, and the result of calling this
+    # method on that scan is {12, 13}.
+    def detect_screenshots(self, pages):
+        keywords = ("User:", " VAZ-LB ")
+        screenshots = set()
+        for page_num, page_text in enumerate(pages):
+            if any(k in page_text for k in keywords):
+                screenshots.add(page_num + 1)
+        if len(screenshots) > 0:
+            self.log.write(
+                "Screenshots: pages %s\n" % ",".join(sorted(map(str, screenshots)))
+            )
+        return screenshots
+
+    def detect_symbols(self, screenshots):
+        # TODO: Implement.
+        pass
 
 
 def process_batch(scans, workdir):
