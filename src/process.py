@@ -116,7 +116,6 @@ class Mutation(object):
                 split_pages.extend(split)
                 split_text.extend([page_text] * len(split))
             text[:] = split_text
-            print("*** ZEBRA", len(split_text), len(split_pages), len(text))
             cmd = [
                 "tiffcp",
                 "-m",  # no memory restrictions
@@ -297,11 +296,14 @@ def maybe_split_page(img_path, text):
     # in the plaintext (that was extracted through OCR) seems to work best.
     # Initially, we restricted the splitting to DIN A3 pages in landscape
     # orientation, but it turned out that (especially older) scans are
-    # in a different format but still need to be split.
+    # in a different format but still need to be split. But we never split
+    # a DIN A4 page into two DIN A5 halves.
     keywords = ("Tabelle", "tabelle", "sind übertragen", "Quadrat")
     if not any(k in text for k in keywords):
         return [img_path]
     with PIL.Image.open(img_path) as img:
+        if din_format(img) in ("A4", "A4R"):
+            return [img_path]
         dpi = img.info["dpi"]
         mid = img.width // 2
         p = os.path.splitext(img_path)[0]
