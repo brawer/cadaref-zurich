@@ -3,11 +3,14 @@
 
 import argparse
 import csv
+import datetime
+import io
 import multiprocessing
 import os
 import re
 import subprocess
 import tempfile
+import traceback
 
 import PIL.Image
 
@@ -25,6 +28,7 @@ class Mutation(object):
         self.date = date
         self.scans = scans
         self.workdir = workdir
+        self.log = io.StringIO()
 
     def process(self):
         # Allow images of arbitrary size. The Python multiprocessing library
@@ -32,12 +36,37 @@ class Mutation(object):
         # so we need to set this global configuration here, in the per-process
         # runner.
         PIL.Image.MAX_IMAGE_PIXELS = None
-        print(f"Starting {self.id}")
-        text = self.pdf_to_text()
-        parcels = self.extract_parcels(text)
-        self.pdf_to_tiff(text)
-        self.threshold()
-        print(f"Finished {self.id}")
+        print(f"START {self.id}")
+        self.start_time = datetime.datetime.now(datetime.timezone.utc)
+        self.log.write("Mutation ID: %s\n" % self.id)
+        self.log.write("Mutation Date: %s\n" % (self.date if self.date else "None"))
+        self.log.write("Started: t=%s\n" % self.start_time.isoformat())
+
+        try:
+            text = self.pdf_to_text()
+            parcels = self.extract_parcels(text)
+            self.pdf_to_tiff(text)
+            self.threshold()
+            self.log_stage_completion("all")
+            self.write_log(success=True)
+            print(f"SUCCESS {self.id}")
+        except Exception as e:
+            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            self.log.write(f"Failed: t={now}\n\n")
+            traceback.print_exception(e, file=self.log)
+            self.write_log(success=False)
+            print(f"FAIL {self.id}")
+
+    def log_stage_completion(self, stage):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        self.log.write(f"Stage: t={now} stage={stage}\n")
+
+    def write_log(self, success):
+        log_dir = "finished" if success else "failed"
+        path = os.path.join(self.workdir, "logs", log_dir, f"{self.id}.txt")
+        with open(path + ".tmp", "w") as fp:
+            fp.write(self.log.getvalue())  # not atomic
+        os.rename(path + ".tmp", path)  # atomic
 
     def pdf_to_text(self):
         text_path = os.path.join(self.workdir, "text", f"{self.id}.txt")
@@ -55,7 +84,11 @@ class Mutation(object):
                 fp.write("\u000C".join(pages))  # not an atomic operation
             os.rename(text_path + ".tmp", text_path)  # atomic operation
         with open(text_path, "r") as fp:
-            return fp.read().split("\u000C")
+            text = fp.read()
+            pages = text.split("\u000C")
+        self.log.write("Text: %d characters, %d pages\n" % (len(text), len(pages)))
+        self.log_stage_completion("text")
+        return pages
 
     def pdf_to_tiff(self, text):
         tiff_path = os.path.join(self.workdir, "rendered", f"{self.id}.tif")
@@ -70,6 +103,7 @@ class Mutation(object):
                 )
                 assert proc.returncode == 0, (pdf_path, proc.returncode)
             pages = list_rendered_pages(temp)
+            self.log.write("Rendered: %d pages\n" % len(pages))
             if self.date:
                 for page in pages:
                     self.set_tiff_date(os.path.join(temp, page))
@@ -94,6 +128,7 @@ class Mutation(object):
             proc = subprocess.run(cmd)  # output file not atomically written
             assert proc.returncode == 0, (cmd, proc.returncode)
             os.rename(tiff_path + ".tmp", tiff_path)  # atomically renamed
+        self.log_stage_completion("rendered")
         return tiff_path
 
     def set_tiff_date(self, path):
@@ -109,12 +144,14 @@ class Mutation(object):
         tmp_dir = os.path.join(self.workdir, "tmp")
         threshold(in_path, tmp_dir, path + ".tmp")  # not atomic
         os.rename(path + ".tmp", path)  # atomic
+        self.log_stage_completion("thresholded")
         return path
 
     def extract_parcels(self, text):
         p = set(re.findall(r"\b([23]\d{4}|[A-Z]{2}\d+)\b", "\n".join(text)))
         for path in self.scans:
             p.update(set(re.findall(r"[A-Z]{2}\d+", path)))
+        self.log.write("Parcels: %s\n" % ",".join(sorted(p)))
         return p
 
 
@@ -124,10 +161,11 @@ def process_batch(scans, workdir):
         "text",
         "rendered",
         "georeferenced",
-        "logs",
         "thresholded",
         "symbols",
         "tmp",
+        os.path.join("logs", "failed"),
+        os.path.join("logs", "finished"),
     ):
         os.makedirs(os.path.join(workdir, dirname), exist_ok=True)
     work = find_work(scans, workdir)
