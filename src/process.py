@@ -269,11 +269,12 @@ def maybe_split_page(img_path, text):
     if not any(k in text for k in keywords):
         return [img_path]
     with PIL.Image.open(img_path) as img:
+        dpi = img.info["dpi"]
         mid = img.width // 2
         p = os.path.splitext(img_path)[0]
         paths = [f"{p}_left.tif", f"{p}_right.tif"]
-        img.crop((0, 0, mid, img.height)).save(paths[0])
-        img.crop((mid, 0, img.width, img.height)).save(paths[1])
+        img.crop((0, 0, mid, img.height)).save(paths[0], dpi=dpi)
+        img.crop((mid, 0, img.width, img.height)).save(paths[1], dpi=dpi)
         return paths
 
 
