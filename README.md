@@ -68,9 +68,17 @@ next to a table or some text. In its rendering stage, the pipeline detetects
 such glued-together pages and vertically splits them in two halves.
 Initially, we had used (rather complex) image analysis to detect this
 situation. Ultimately, however, we settled on looking for certain keywords
-in the OCRed text.
+in the OCRed text; this was both simpler and more reliable.
 
-3. **Thresholding:** In `workdir/thresholded`, the pipeline stores
+3. **Screenshot detection:** Some mutation dossiers of the late 1990s and
+early 200s contain screenshots of a Microsoft Windows tool. At the time,
+this tool was used to manage the cadastral register. Because these screenshots
+confuse the symbol recognition, the pipeline detects them. The easiest
+and most reliable way to detect screenshots was to look at the OCRed text.
+The pipeline does not generate special files for detected screenshots,
+but it notes a list of screenshot pages in the logs.
+
+4. **Thresholding:** In `workdir/thresholded`, the pipeline stores
 a thresholded (binarized) version of the rendered image as a tiled,
 multi-page, black-and-white TIFF image in [group 4 compression](https://en.wikipedia.org/wiki/Group_4_compression). The pipeline chooses a suitable
 threshold for each page by means of the classic [Ōtsu method](https://en.wikipedia.org/wiki/Otsu%27s_method). However, the mutation plan archive
@@ -78,17 +86,17 @@ contains a handful of very dark scans where the Ōtsu method did not
 perform well. The pipeline detects this case and applies a custom
 workaround to handle it.
 
-4. **Symbol recognition:** In `workdir/symbols`, the pipeline stores
+5. **Symbol recognition:** In `workdir/symbols`, the pipeline stores
 a CSV file that tells which symbols have been recognized on the historical
 map images by means of computer vision. The CSV file contains the
 following columns: `page` for the document page, `x` and `y` for
 the pixel coordinates on that page (which can be fractional because
-symbol recognitino works on an enhanced-resolution image), and
+symbol recognition works on an enhanced-resolution image), and
 `symbol` with the detected symbol type.
 
-5. **Survey data extraction:** In `workdir/points`, the pipeline stores...
+6. **Survey data extraction:** In `workdir/points`, the pipeline stores...
 
-6. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
+7. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
 
 In `workdir/logs/success`, the poipeline stores a log file for every
 mutation whose plans could be successfully georeferenced, wheras the logs
