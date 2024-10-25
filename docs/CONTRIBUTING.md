@@ -62,3 +62,32 @@ SUCCESS 20009
 ```
 
 You’ll find the output of each pipeline step inside `workdir`.
+
+
+## Change the source code
+
+To change the source code of the pipeline, use any editor of your choice.
+Re-run the pipeline and check out the results. Note that the pipeline
+caches intermediate results, so you may or may not want to delete
+`workdir` after each edit depending on your task.
+
+Once you’re happy with your changes, make a GitHub pull request.
+
+
+## Release a new version
+
+After a series of changes have been merged into the code repository,
+it’s time to release a new version of the pipeline. To see all
+versions ever released, use the `git tag` command. To tag a new
+release, for example `v0.1.2`, do this:
+
+```sh
+git tag v0.1.2
+git push origin v0.1.2
+```
+
+After you’ve pushed a fresh release tag to GitHub, an automated workflow
+will build and deploy a fresh container, including a Software Bill of
+Materials (SBOM), to the
+project’s [Container Registry](https://github.com/brawer/cadaref-zurich/pkgs/container/cadaref-zurich) on GitHub. In addition, the GitHub workflow will
+automatically create and publish an [Attestation of provencance](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-to-establish-provenance-for-builds) for the build.
