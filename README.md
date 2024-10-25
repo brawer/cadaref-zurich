@@ -78,7 +78,13 @@ contains a handful of very dark scans where the Ōtsu method did not
 perform well. The pipeline detects this case and applies a custom
 workaround to handle it.
 
-4. **Symbol recognition:** In `workdir/symbols`, the pipeline stores...
+4. **Symbol recognition:** In `workdir/symbols`, the pipeline stores
+a CSV file that tells which symbols have been recognized on the historical
+map images by means of computer vision. The CSV file contains the
+following columns: `page` for the document page, `x` and `y` for
+the pixel coordinates on that page (which can be fractional because
+symbol recognitino works on an enhanced-resolution image), and
+`symbol` with the detected symbol type.
 
 5. **Survey data extraction:** In `workdir/points`, the pipeline stores...
 

@@ -12,8 +12,11 @@ import subprocess
 import tempfile
 import traceback
 
+import cv2
+import numpy
 import PIL.Image
 
+from classify import detect_map_symbols
 from mutation_dates import dates as mutation_dates
 from threshold import threshold
 from util import din_format
@@ -183,8 +186,60 @@ class Mutation(object):
         return screenshots
 
     def detect_symbols(self, screenshots):
-        # TODO: Implement.
-        pass
+        sym_path = os.path.join(self.workdir, "symbols", f"{self.id}.csv")
+        if os.path.exists(sym_path):
+            return sym_path
+        symbols = []
+        r_path = os.path.join(self.workdir, "rendered", f"{self.id}.tif")
+        t_path = os.path.join(self.workdir, "thresholded", f"{self.id}.tif")
+        with PIL.Image.open(r_path) as rendered:
+            with PIL.Image.open(t_path) as thresholded:
+                for page_num in range(rendered.n_frames):
+                    # Skip screenshots. page_num is 0-based.
+                    if page_num + 1 in screenshots:
+                        continue
+                    rendered.seek(page_num)
+                    thresholded.seek(page_num)
+                    rendered_dpi = float(rendered.info["dpi"][0])
+                    thresholded_dpi = float(thresholded.info["dpi"][0])
+                    scale = rendered_dpi / thresholded_dpi
+                    s = self.detect_map_symbols_on_page(thresholded, scale)
+                    for x, y, sym in s:
+                        symbols.append((page_num + 1, x, y, sym))
+                    self.log.write(f"Symbols: page={page_num+1} n={len(s)}\n")
+        symbols.sort()
+        tmp_path = sym_path + ".tmp"
+        with open(tmp_path, "w") as fp:
+            out = csv.writer(fp)
+            out.writerow(["page", "x", "y", "symbol"])
+            for page, x, y, symbol in symbols:
+                out.writerow([str(page), str(x), str(y), symbol])
+        os.rename(tmp_path, sym_path)
+        self.log_stage_completion("symbols")
+        return sym_path
+
+    def detect_map_symbols_on_page(self, image, scale):
+        page = numpy.asarray(image).astype(numpy.uint8) * 255
+
+        # Our classifier sometimes gets confused if the outermost
+        # pixels aren't white. Draw a one-pixel white line around
+        # the plan.
+        h, w = page.shape[0], page.shape[1]
+        cv2.rectangle(page, (0, 0), (w - 1, h - 1), color=255)
+
+        # At the moment, detection of white symbols is much
+        # more reliable than detection of black symbols (mainly
+        # because small black dots get confused with text and
+        # dotted lines), so we restrict ourselves to white.
+        # It still generates enough fodder for matching,
+        # because black dots stand for unverified border points
+        # which are relatively rare in practice, at least within
+        # a city like Zürich.
+        return [
+            (x * scale, y * scale, sym)
+            for (x, y, sym) in detect_map_symbols(page)
+            if "white" in sym
+        ]
 
 
 def process_batch(scans, workdir):
