@@ -106,7 +106,7 @@ class Mutation(object):
             self.log.write("Rendered: %d pages\n" % len(pages))
             if self.date:
                 for page in pages:
-                    self.set_tiff_date(os.path.join(temp, page))
+                    self.set_tiff_date(page)
             assert len(pages) == len(text), self.id
             split_pages = []
             for page_path, page_text in zip(pages, text):
