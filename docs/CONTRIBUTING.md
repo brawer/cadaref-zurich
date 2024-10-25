@@ -23,7 +23,7 @@ If you work on Debian Linux, set up your machine like this:
 
 ```sh
 apt-get update
-apt-get install -y gdal-bin git libtiff-dev libopencv-dev poppler-utils python3 python3-venv
+apt-get install -y gdal-bin git libopencv-dev libtiff-tools poppler-utils python3 python3-venv
 git clone https://github.com/brawer/cadaref-zurich.git
 cd cadaref-zurich
 python3 -m venv venv
