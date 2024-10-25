@@ -227,7 +227,8 @@ def maybe_split_page(img_path, text):
     # Initially, we restricted the splitting to DIN A3 pages in landscape
     # orientation, but it turned out that (especially older) scans are
     # in a different format but still need to be split.
-    if "Tabelle" not in text and "tabelle" not in text:
+    keywords = ("Tabelle", "tabelle", "sind übertragen", "Quadrat")
+    if not any(k in text for k in keywords):
         return [img_path]
     with PIL.Image.open(img_path) as img:
         mid = img.width // 2
