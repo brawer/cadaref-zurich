@@ -15,6 +15,7 @@ git clone https://github.com/brawer/cadaref-zurich.git
 cd cadaref-zurich
 python3 -m venv venv
 venv/bin/pip install -r requirements.txt
+venv/bin/python3 src/process.py --scans=/path/to/scans
 ```
 
 ### Linux
@@ -28,8 +29,9 @@ git clone https://github.com/brawer/cadaref-zurich.git
 cd cadaref-zurich
 python3 -m venv venv
 venv/bin/pip install -r	requirements.txt
+venv/bin/python3 src/process.py --scans=/path/to/scans
 ```
 
-Other Linux distributions may use different package names;
-please refer to your system’s documentation to find their names.
 For Alpine Linux, see our [Containerfile](../Containerfile).
+Other Linux distributions may use slightly different package names;
+please refer to your system’s documentation.
