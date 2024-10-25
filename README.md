@@ -84,9 +84,9 @@ workaround to handle it.
 
 6. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
 
-In `workdir/logs/finished`, the poipeline stores a log file for every
-mutation whose plans could be successfully georeferenced, wherase failures
-are logged In `workdir/logs/failed`.
+In `workdir/logs/success`, the poipeline stores a log file for every
+mutation whose plans could be successfully georeferenced, wheras the logs
+for failed attempts are logged in `workdir/logs/failed`.
 
 In `workdir/tmp`, the pipeline stores temporary files. We do not use `/tmp`
 because some of our temporary files can be very large, and we do not

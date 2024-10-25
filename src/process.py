@@ -64,7 +64,7 @@ class Mutation(object):
         self.log.write(f"Stage: t={now} stage={stage}\n")
 
     def write_log(self, success):
-        log_dir = "finished" if success else "failed"
+        log_dir = "success" if success else "failed"
         path = os.path.join(self.workdir, "logs", log_dir, f"{self.id}.txt")
         with open(path + ".tmp", "w") as fp:
             fp.write(self.log.getvalue())  # not atomic
@@ -197,7 +197,7 @@ def process_batch(scans, workdir):
         "symbols",
         "tmp",
         os.path.join("logs", "failed"),
-        os.path.join("logs", "finished"),
+        os.path.join("logs", "success"),
     ):
         os.makedirs(os.path.join(workdir, dirname), exist_ok=True)
     work = find_work(scans, workdir)
