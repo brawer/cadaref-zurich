@@ -31,7 +31,7 @@ def threshold(in_path, tmpdir_path, out_path):
     # but tiling does not seem to be implemented. Therefore we write out
     # an untiled multi-page TIFF and then run the `tiffcp` command to
     # produce a tiled image.
-    with tempfile.TemporaryDirectory(dir=tmpdir_path, delete=True) as tmp:
+    with tempfile.TemporaryDirectory(dir=tmpdir_path) as tmp:
         tmp_path = os.path.join(tmp, "t.tif")
         with open(tmp_path, "w+b") as fp, PIL.TiffImagePlugin.AppendingTiffWriter(
             fp

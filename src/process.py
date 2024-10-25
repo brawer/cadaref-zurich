@@ -95,7 +95,7 @@ class Mutation(object):
         if os.path.exists(tiff_path):
             return tiff_path
         tmp_dir = os.path.join(self.workdir, "tmp")
-        with tempfile.TemporaryDirectory(delete=True, dir=tmp_dir) as temp:
+        with tempfile.TemporaryDirectory(dir=tmp_dir) as temp:
             for i, pdf_path in enumerate(self.scans):
                 target = os.path.join(temp, f"S{i+1}")
                 proc = subprocess.run(
