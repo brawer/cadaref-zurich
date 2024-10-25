@@ -70,13 +70,14 @@ Initially, we had used (rather complex) image analysis to detect this
 situation. Ultimately, however, we settled on looking for certain keywords
 in the OCRed text; this was both simpler and more reliable.
 
-3. **Screenshot detection:** Some mutation dossiers of the late 1990s and
-early 200s contain screenshots of a Microsoft Windows tool. At the time,
-this tool was used to manage the cadastral register. Because these screenshots
-confuse the symbol recognition, the pipeline detects them. The easiest
-and most reliable way to detect screenshots was to look at the OCRed text.
-The pipeline does not generate special files for detected screenshots,
-but it notes a list of screenshot pages in the logs.
+3. **Screenshot detection:** Some mutation dossiers of the late 1990s
+and early 2000s contain printed-out screenshots of a Microsoft Windows
+database. At the time, this tool was used to manage the cadastral
+register. Because these screenshots confuse the symbol recognition,
+the pipeline detects them. The easiest and most reliable way to detect
+screenshots was to look at the OCRed text.  The pipeline does not
+generate special files for detected screenshots, but it notes a list
+of screenshot pages in the logs.
 
 4. **Thresholding:** In `workdir/thresholded`, the pipeline stores
 a thresholded (binarized) version of the rendered image as a tiled,
