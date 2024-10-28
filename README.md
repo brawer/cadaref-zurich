@@ -70,7 +70,27 @@ Initially, we had used (rather complex) image analysis to detect this
 situation. Ultimately, however, we settled on looking for certain keywords
 in the OCRed text; this was both simpler and more reliable.
 
-3. **Screenshot detection:** Some mutation dossiers of the late 1990s
+3. **Thresholding:** In `workdir/thresholded`, the pipeline stores
+a thresholded (binarized) version of the rendered image as a tiled,
+multi-page, black-and-white TIFF image in [group 4 compression](https://en.wikipedia.org/wiki/Group_4_compression). The pipeline chooses a suitable
+threshold for each page by means of the classic [Ōtsu method](https://en.wikipedia.org/wiki/Otsu%27s_method). However, the mutation plan archive
+contains a handful of very dark scans where the Ōtsu method did not
+perform well. The pipeline detects this case and applies a custom
+workaround to handle it.
+
+4. **Bounds estimation:** In `workdir/bounds`, the pipeline stores a
+GeoJSON file with the approximate bounds of the mutation.  The bounds
+are approximated by looking up the parcel numbers, found by means of
+Optical Character Recognition, in the survey data of December 2007.
+This GeoJSON file uses a `crs` field that indicates the Swiss LV95
+coordinate reference system. The `crs` property had been part of the
+original GeoJSON specification, but was removed from the GeoJSON format
+during the IETF standardization process because WGS84 coordinates are
+enough for most typical use cases. Therefore, the GeoJSON file
+may not be readable by all software. — If no bounds can be found,
+the pipeline stops processing the mutation with status `BoundsNotFound`.
+
+5. **Screenshot detection:** Some mutation dossiers of the late 1990s
 and early 2000s contain printed-out screenshots of a Microsoft Windows
 database. At the time, this tool was used to manage the cadastral
 register. Because these screenshots confuse the symbol recognition,
@@ -79,32 +99,15 @@ screenshots was to look at the OCRed text.  The pipeline does not
 generate special files for detected screenshots, but it notes a list
 of screenshot pages in the logs.
 
-4. **Thresholding:** In `workdir/thresholded`, the pipeline stores
-a thresholded (binarized) version of the rendered image as a tiled,
-multi-page, black-and-white TIFF image in [group 4 compression](https://en.wikipedia.org/wiki/Group_4_compression). The pipeline chooses a suitable
-threshold for each page by means of the classic [Ōtsu method](https://en.wikipedia.org/wiki/Otsu%27s_method). However, the mutation plan archive
-contains a handful of very dark scans where the Ōtsu method did not
-perform well. The pipeline detects this case and applies a custom
-workaround to handle it.
-
-5. **Symbol recognition:** In `workdir/symbols`, the pipeline stores
+6. **Symbol recognition:** In `workdir/symbols`, the pipeline stores
 a CSV file that tells which symbols have been recognized on the historical
 map images by means of computer vision. The CSV file contains the
 following columns: `page` for the document page, `x` and `y` for
 the pixel coordinates on that page (which can be fractional because
 symbol recognition works on an enhanced-resolution image), and
-`symbol` with the detected symbol type.
-
-6. **Bounds estimation:** In `workdir/bounds`, the pipeline stores a
-GeoJSON file with the approximate bounds of the mutation.  The bounds
-are approximated by looking up the parcel numbers, found by means of
-Optical Character Recognition, in the survey data of December 2007.
-This GeoJSON file uses a `crs` field that indicates the Swiss LV95
-coordinate reference system. The `crs` property had been part of the
-original GeoJSON specification of 2008, but was removed from GeoJSON
-during the IETF standardization process (because WGS84 coordinates are
-enoiugh for most typical use cases). Therefore, the GeoJSON file
-may not be readable by all software.
+`symbol` with the detected symbol type. — If there’s not a single page
+in the dossier with at least four cartographic symbols, the pipeline
+stops processing this mutation with status `NotEnoughSymbols`.
 
 7. **Survey data extraction:** In `workdir/points`, the pipeline stores...
 

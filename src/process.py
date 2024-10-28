@@ -54,12 +54,14 @@ class Mutation(object):
         try:
             text = self.pdf_to_text()
             self.pdf_to_tiff(text)  # modifies text in case of split pages
-            screenshots = self.detect_screenshots(text)
             self.threshold()
-            self.detect_symbols(screenshots)
             bounds = self.estimate_bounds(text)
             if bounds == None:
                 return "BoundsNotFound"
+            screenshots = self.detect_screenshots(text)
+            symbols = self.detect_symbols(screenshots)
+            if len(symbols) == 0:
+                return "NotEnoughSymbols"
             # TODO: Extract points from survey_data
             # TODO: Call georeferencing tool
             self.log_stage_completion("all")
@@ -197,7 +199,7 @@ class Mutation(object):
     def detect_symbols(self, screenshots):
         sym_path = os.path.join(self.workdir, "symbols", f"{self.id}.csv")
         if os.path.exists(sym_path):
-            return sym_path
+            return self.read_symbols(sym_path)
         symbols = []
         r_path = os.path.join(self.workdir, "rendered", f"{self.id}.tif")
         t_path = os.path.join(self.workdir, "thresholded", f"{self.id}.tif")
@@ -225,7 +227,18 @@ class Mutation(object):
                 out.writerow([str(page), str(x), str(y), symbol])
         os.rename(tmp_path, sym_path)
         self.log_stage_completion("symbols")
-        return sym_path
+        return self.read_symbols(sym_path)
+
+    def read_symbols(self, path):
+        syms = {}
+        with open(path) as fp:
+            for row in csv.DictReader(fp):
+                page = int(row["page"])
+                x, y = float(row["x"]), float(row["y"])
+                symbol = row["symbol"]
+                if "white" in symbol:
+                    syms.setdefault(page, []).append([x, y, symbol])
+        return {page: syms for page, syms in syms.items() if len(syms) >= 4}
 
     def detect_map_symbols_on_page(self, image, scale):
         page = numpy.asarray(image).astype(numpy.uint8) * 255
