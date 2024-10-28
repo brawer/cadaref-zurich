@@ -5,6 +5,7 @@ import argparse
 import csv
 import datetime
 import io
+import json
 import multiprocessing
 import os
 import re
@@ -18,6 +19,7 @@ import PIL.Image
 
 from classify import detect_map_symbols
 from mutation_dates import dates as mutation_dates
+import survey_data
 from threshold import threshold
 from util import din_format
 
@@ -48,10 +50,10 @@ class Mutation(object):
         try:
             text = self.pdf_to_text()
             self.pdf_to_tiff(text)  # modifies text in case of split pages
-            parcels = self.extract_parcels(text)
             screenshots = self.detect_screenshots(text)
             self.threshold()
             self.detect_symbols(screenshots)
+            bounds = self.guess_mutation_bounds(text)
             self.log_stage_completion("all")
             self.write_log(success=True)
             print(f"SUCCESS {self.id}")
@@ -241,6 +243,68 @@ class Mutation(object):
             if "white" in sym
         ]
 
+    # Guess a bounding box (min_x, max_x, min_y, max_y) for a mutation.
+    # The implementation looks at parcel numbers extracted from OCR text,
+    # and at the current (2007) survey data in the hope that the mutation
+    # has left a trace in today’s data.
+    def guess_mutation_bounds(self, text):
+        path = os.path.join(self.workdir, "bounds", f"{self.id}.geojson")
+        if os.path.exists(path):
+            with open(path) as fp:
+                geojson = json.load(fp)
+            return tuple(geojson["bbox"])
+        bbox, bbox_source = None, None
+
+        # 1. Try to use parcel numbers found on the plan by means of OCR.
+        parcels = [survey_data.parcels.get(p) for p in self.extract_parcels(text)]
+        parcels = [
+            p for p in parcels if p and p.min_x and p.max_x and p.min_y and p.max_y
+        ]
+        if len(parcels) > 0:
+            min_x = min(b.min_x for b in parcels)
+            min_y = min(b.min_y for b in parcels)
+            max_x = max(b.max_x for b in parcels)
+            max_y = max(b.max_y for b in parcels)
+            parcel_ids = ",".join(sorted({p.parcel_id for p in parcels}))
+            bbox = [min_x, min_y, max_x, max_y]
+            bbox_source = f"survey_data/parcels.csv [{parcel_ids}]"
+            features = [survey_data.make_geojson(p) for p in parcels]
+
+        # 2. If that failed, try to find a trace of the mutation in 2007 data.
+        #    For example, when a mutation created a parcel that still exists,
+        #    the script in src/extract_survey_data.py will be able to recover
+        #    the mutation from the historical records available in today’s
+        #    survey data, and emit a bounding box in survey_data/mutations.csv.
+        if mut := survey_data.mutations.get(self.id):
+            bbox = [mut.min_x, mut.min_y, mut.max_x, mut.max_y]
+            bbox_source = f"survey_data/mutations.csv [{self.id}]"
+            features = [survey_data.make_geojson(mut)]
+
+        if not bbox:
+            self.log.write("MutationBounds: not found\n")
+            return None
+
+        self.log.write(f"MutationBounds: {bbox}\n")
+        self.log.write(f"MutationBoundsSource: {bbox_source}\n")
+        geojson = {
+            "type": "FeatureCollection",
+            "bbox": list(bbox),
+            "crs": {
+                "type": "name",
+                "properties": {
+                    "name": "urn:ogc:def:crs:EPSG::2056",
+                },
+            },
+            "features": features,
+        }
+
+        tmp_path = path + ".tmp"
+        with open(tmp_path, "w") as fp:
+            json.dump(geojson, fp, indent=4, sort_keys=True)  # not atomic
+        os.rename(tmp_path, path)  # atomic operation
+
+        return tuple(bbox)
+
 
 def process_batch(scans, workdir):
     os.makedirs(workdir, exist_ok=True)
@@ -250,6 +314,7 @@ def process_batch(scans, workdir):
         "georeferenced",
         "thresholded",
         "symbols",
+        "bounds",
         "tmp",
         os.path.join("logs", "failed"),
         os.path.join("logs", "success"),

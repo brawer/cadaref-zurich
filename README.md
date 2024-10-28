@@ -95,9 +95,20 @@ the pixel coordinates on that page (which can be fractional because
 symbol recognition works on an enhanced-resolution image), and
 `symbol` with the detected symbol type.
 
-6. **Survey data extraction:** In `workdir/points`, the pipeline stores...
+6. **Bounds estimation:** In `workdir/bounds`, the pipeline stores a
+GeoJSON file with the approximate bounds of the mutation.  The bounds
+are approximated by looking up the parcel numbers, found by means of
+Optical Character Recognition, in the survey data of December 2007.
+This GeoJSON file uses a `crs` field that indicates the Swiss LV95
+coordinate reference system. The `crs` property had been part of the
+original GeoJSON specification of 2008, but was removed from GeoJSON
+during the IETF standardization process (because WGS84 coordinates are
+enoiugh for most typical use cases). Therefore, the GeoJSON file
+may not be readable by all software.
 
-7. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
+7. **Survey data extraction:** In `workdir/points`, the pipeline stores...
+
+8. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
 
 In `workdir/logs/success`, the poipeline stores a log file for every
 mutation whose plans could be successfully georeferenced, wheras the logs
