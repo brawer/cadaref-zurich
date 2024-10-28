@@ -42,34 +42,41 @@ class Mutation(object):
         # runner.
         PIL.Image.MAX_IMAGE_PIXELS = None
         print(f"START {self.id}")
-        self.start_time = datetime.datetime.now(datetime.timezone.utc)
-        self.log.write("Mutation ID: %s\n" % self.id)
-        self.log.write("Mutation Date: %s\n" % (self.date if self.date else "None"))
-        self.log.write("Started: t=%s\n" % self.start_time.isoformat())
+        status = self.do_process()
+        print(f"FINISHED {self.id} {status}")
+        self.write_log(status)
 
+    def do_process(self):
+        self.start_time = datetime.datetime.now(datetime.timezone.utc)
+        self.log.write("MutationID: %s\n" % self.id)
+        self.log.write("MutationDate: %s\n" % (self.date if self.date else "None"))
+        self.log.write("Started: t=%s\n" % self.start_time.isoformat())
         try:
             text = self.pdf_to_text()
             self.pdf_to_tiff(text)  # modifies text in case of split pages
             screenshots = self.detect_screenshots(text)
             self.threshold()
             self.detect_symbols(screenshots)
-            bounds = self.guess_mutation_bounds(text)
+            bounds = self.estimate_bounds(text)
+            if bounds == None:
+                return "BoundsNotFound"
+            # TODO: Extract points from survey_data
+            # TODO: Call georeferencing tool
             self.log_stage_completion("all")
-            self.write_log(success=True)
-            print(f"SUCCESS {self.id}")
+            return "OK"
         except Exception as e:
             now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            self.log.write(f"Failed: t={now}\n\n")
             traceback.print_exception(e, file=self.log)
-            self.write_log(success=False)
-            print(f"FAIL {self.id}")
+            self.log.write("\n\n\n")
+            return "Crashed"
 
     def log_stage_completion(self, stage):
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         self.log.write(f"Stage: t={now} stage={stage}\n")
 
-    def write_log(self, success):
-        log_dir = "success" if success else "failed"
+    def write_log(self, status):
+        self.log.write(f"Status: {status}\n")
+        log_dir = "success" if (status == "OK") else "failed"
         path = os.path.join(self.workdir, "logs", log_dir, f"{self.id}.txt")
         with open(path + ".tmp", "w") as fp:
             fp.write(self.log.getvalue())  # not atomic
@@ -243,11 +250,11 @@ class Mutation(object):
             if "white" in sym
         ]
 
-    # Guess a bounding box (min_x, max_x, min_y, max_y) for a mutation.
+    # Estimate a bounding box (min_x, max_x, min_y, max_y) for a mutation.
     # The implementation looks at parcel numbers extracted from OCR text,
     # and at the current (2007) survey data in the hope that the mutation
     # has left a trace in today’s data.
-    def guess_mutation_bounds(self, text):
+    def estimate_bounds(self, text):
         path = os.path.join(self.workdir, "bounds", f"{self.id}.geojson")
         if os.path.exists(path):
             with open(path) as fp:
@@ -303,6 +310,7 @@ class Mutation(object):
             json.dump(geojson, fp, indent=4, sort_keys=True)  # not atomic
         os.rename(tmp_path, path)  # atomic operation
 
+        self.log_stage_completion("bounds")
         return tuple(bbox)
 
 
