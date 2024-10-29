@@ -109,7 +109,26 @@ symbol recognition works on an enhanced-resolution image), and
 in the dossier with at least four cartographic symbols, the pipeline
 stops processing this mutation with status `NotEnoughSymbols`.
 
-7. **Survey data extraction:** In `workdir/points`, the pipeline stores...
+7. **Survey data extraction:** In `workdir/points`, the pipeline
+stores a CSV file with the geographic points (survey markers, fixed
+points) that are likely to have been drawn on the historical cadastral
+map.  The CSV file contains the following columns: `id`, `x`, `y` and
+`symbol`.  The latter is the cartographic symbol type likely to be
+used on the map, inferred from known properties of the feature
+(eg. whether or not a marker has been secured with a metal
+bolt). Essentially, this is an excerpt of the cadastral survey data,
+limited to the geographical area found earlier in the **Bounds
+estimation** stage.  To the extent possible, the pipeline further
+restricts this set of points to those that actually existed at the
+time the map was drawn. For example, a survery marker that existed
+between 1969 and 1992 would included when georeferencing a historical
+map from 1984, but not when georeferencing a map from 1930 or 1999. We
+allow for some slack (up to a year) in date comparisions, in case the
+recorded dates were not fully accurate. The set of points is taken
+from two sources: The land survey database as of 2007, and a list of
+[deleted points](src/deleted_points.csv) that we recovered (and
+manually checked) from scanned and OCRed point deletion logs that
+happened to get archived by the City of Zürich.
 
 8. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
 

@@ -55,14 +55,16 @@ class Mutation(object):
             text = self.pdf_to_text()
             self.pdf_to_tiff(text)  # modifies text in case of split pages
             self.threshold()
+
             bounds = self.estimate_bounds(text)
             if bounds == None:
                 return "BoundsNotFound"
+            points_path = self.extract_survey_points(bounds, self.date)
+
             screenshots = self.detect_screenshots(text)
             symbols = self.detect_symbols(screenshots)
             if len(symbols) == 0:
                 return "NotEnoughSymbols"
-            # TODO: Extract points from survey_data
             # TODO: Call georeferencing tool
             self.log_stage_completion("all")
             return "OK"
@@ -172,6 +174,29 @@ class Mutation(object):
             p.update(set(re.findall(r"[A-Z]{2}\d+", path)))
         self.log.write("Parcels: %s\n" % ",".join(sorted(p)))
         return p
+
+    def extract_survey_points(self, bounds, map_date):
+        path = os.path.join(self.workdir, "points", f"{self.id}.csv")
+        if os.path.exists(path):
+            return path
+
+        min_x, min_y, max_x, max_y = bounds
+
+        if map_date:
+            map_date = datetime.date.fromisoformat((map_date + "-01-01")[:10])
+            map_date = map_date + datetime.timedelta(days=365)
+        else:
+            max_date = None
+
+        tmp_path = path + ".tmp"
+        with open(tmp_path, "w") as fp:  # writing to a file is not atomic
+            writer = csv.writer(fp)
+            writer.writerow(["id", "x", "y", "symbol"])
+            it = survey_data.read_points(min_x, min_y, max_x, max_y, map_date)
+            for id, x, y, symbol in it:
+                writer.writerow([id, "%.3f" % x, "%.3f" % y, symbol])
+        os.rename(tmp_path, path)  # renaming a file is an atomic operation
+        return path
 
     # Detect scanned pages that are screenshots of a Microsoft Windows
     # tool, probably an Access database which the City of Zürich used
@@ -336,6 +361,7 @@ def process_batch(scans, workdir):
         "thresholded",
         "symbols",
         "bounds",
+        "points",
         "tmp",
         os.path.join("logs", "failed"),
         os.path.join("logs", "success"),
