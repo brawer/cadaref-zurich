@@ -321,9 +321,10 @@ class Mutation(object):
         #    the mutation from the historical records available in today’s
         #    survey data, and emit a bounding box in survey_data/mutations.csv.
         if mut := survey_data.mutations.get(self.id):
-            bbox = [mut.min_x, mut.min_y, mut.max_x, mut.max_y]
-            bbox_source = f"survey_data/mutations.csv [{self.id}]"
-            features = [survey_data.make_geojson(mut)]
+            if mut.min_x and mut.min_y and mut.max_x and mut.max_y:
+                bbox = [mut.min_x, mut.min_y, mut.max_x, mut.max_y]
+                bbox_source = f"survey_data/mutations.csv [{self.id}]"
+                features = [survey_data.make_geojson(mut)]
 
         if not bbox:
             self.log.write("MutationBounds: not found\n")
