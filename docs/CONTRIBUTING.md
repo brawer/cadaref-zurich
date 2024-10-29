@@ -10,6 +10,13 @@ If you work on macOS, install [Homebrew](https://brew.sh/) and run
 the following commands on a terminal:
 
 ```sh
+brew install cargo git
+git clone https://github.com/brawer/cadaref.git
+cd cadaref
+cargo build --release
+cargo test --release
+cd ..
+
 brew install gdal git libtiff opencv poppler python3
 git clone https://github.com/brawer/cadaref-zurich.git
 cd cadaref-zurich
@@ -24,6 +31,13 @@ If you work on Debian Linux, set up your machine like this:
 
 ```sh
 apt-get update
+apt-get install -y git rust
+git clone https://github.com/brawer/cadaref.git
+cd cadaref
+cargo build --release
+cargo test --release
+cd ..
+
 apt-get install -y gdal-bin git libopencv-dev libtiff-tools poppler-utils python3 python3-venv
 git clone https://github.com/brawer/cadaref-zurich.git
 cd cadaref-zurich
