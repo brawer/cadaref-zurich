@@ -297,7 +297,9 @@ class Mutation(object):
         if os.path.exists(path):
             with open(path) as fp:
                 geojson = json.load(fp)
-            return tuple(geojson["bbox"])
+            bounds = tuple(geojson["bbox"])
+            self.log.write(f"MutationBounds: {bounds}\n")
+            return bounds
         bbox, bbox_source = None, None
 
         # 1. Try to use parcel numbers found on the plan by means of OCR.
@@ -305,36 +307,33 @@ class Mutation(object):
         parcels = [
             p for p in parcels if p and p.min_x and p.max_x and p.min_y and p.max_y
         ]
-        if len(parcels) > 0:
-            min_x = min(b.min_x for b in parcels)
-            min_y = min(b.min_y for b in parcels)
-            max_x = max(b.max_x for b in parcels)
-            max_y = max(b.max_y for b in parcels)
-            parcel_ids = ",".join(sorted({p.parcel_id for p in parcels}))
-            bbox = [min_x, min_y, max_x, max_y]
-            bbox_source = f"survey_data/parcels.csv [{parcel_ids}]"
-            features = [survey_data.make_geojson(p) for p in parcels]
+        features = [survey_data.make_geojson(p) for p in parcels]
 
-        # 2. If that failed, try to find a trace of the mutation in 2007 data.
+        # 2. In addition, try to find a trace of the mutation in 2007 data.
         #    For example, when a mutation created a parcel that still exists,
         #    the script in src/extract_survey_data.py will be able to recover
         #    the mutation from the historical records available in today’s
         #    survey data, and emit a bounding box in survey_data/mutations.csv.
         if mut := survey_data.mutations.get(self.id):
             if mut.min_x and mut.min_y and mut.max_x and mut.max_y:
-                bbox = [mut.min_x, mut.min_y, mut.max_x, mut.max_y]
-                bbox_source = f"survey_data/mutations.csv [{self.id}]"
-                features = [survey_data.make_geojson(mut)]
+                features.append(survey_data.make_geojson(mut))
 
-        if not bbox:
+        if len(features) == 0:
             self.log.write("MutationBounds: not found\n")
             return None
 
+        coords = []
+        for f in features:
+            for c in f["geometry"]["coordinates"]:
+                coords.append(c)
+
+        min_x, min_y = min(c[0] for c in coords), min(c[1] for c in coords)
+        max_x, max_y = max(c[0] for c in coords), max(c[1] for c in coords)
+        bbox = [min_x, min_y, max_x, max_y]
         self.log.write(f"MutationBounds: {bbox}\n")
-        self.log.write(f"MutationBoundsSource: {bbox_source}\n")
         geojson = {
             "type": "FeatureCollection",
-            "bbox": list(bbox),
+            "bbox": bbox,
             "crs": {
                 "type": "name",
                 "properties": {
