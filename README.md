@@ -78,7 +78,15 @@ contains a handful of very dark scans where the Ōtsu method did not
 perform well. The pipeline detects this case and applies a custom
 workaround to handle it.
 
-4. **Bounds estimation:** In `workdir/bounds`, the pipeline stores a
+4. **Map scale extraction:** The pipeline tries to find the map scale,
+such as `1:500`, that was often (but not always) printed on the historical
+map. If no scale designation can be found on the page, the pipeline falls
+back to the other pages in the same mutation dossier because sometimes
+the scale was given on the page next to the actual map. If this still
+does not lead to any map scales, the pipeline supplies a fallback list
+with map scales that commonly appear in the dataset.
+
+5. **Bounds estimation:** In `workdir/bounds`, the pipeline stores a
 GeoJSON file with the approximate bounds of the mutation.  The bounds
 are approximated by looking up the parcel numbers, found by means of
 Optical Character Recognition, in the survey data of December 2007.
@@ -90,7 +98,7 @@ enough for most typical use cases. Therefore, the GeoJSON file
 may not be readable by all software. — If no bounds can be found,
 the pipeline stops processing the mutation with status `BoundsNotFound`.
 
-5. **Screenshot detection:** Some mutation dossiers of the late 1990s
+6. **Screenshot detection:** Some mutation dossiers of the late 1990s
 and early 2000s contain printed-out screenshots of a Microsoft Windows
 database. At the time, this tool was used to manage the cadastral
 register. Because these screenshots confuse the symbol recognition,
@@ -99,7 +107,7 @@ screenshots was to look at the OCRed text.  The pipeline does not
 generate special files for detected screenshots, but it notes a list
 of screenshot pages in the logs.
 
-6. **Symbol recognition:** In `workdir/symbols`, the pipeline stores
+7. **Symbol recognition:** In `workdir/symbols`, the pipeline stores
 a CSV file that tells which symbols have been recognized on the historical
 map images by means of computer vision. The CSV file contains the
 following columns: `page` for the document page, `x` and `y` for
@@ -109,7 +117,7 @@ symbol recognition works on an enhanced-resolution image), and
 in the dossier with at least four cartographic symbols, the pipeline
 stops processing this mutation with status `NotEnoughSymbols`.
 
-7. **Survey data extraction:** In `workdir/points`, the pipeline
+8. **Survey data extraction:** In `workdir/points`, the pipeline
 stores a CSV file with the geographic points (survey markers, fixed
 points) that are likely to have been drawn on the historical cadastral
 map.  The CSV file contains the following columns: `id`, `x`, `y` and
@@ -130,7 +138,7 @@ from two sources: The land survey database as of 2007, and a list of
 manually checked) from scanned and OCRed point deletion logs that
 happened to get archived by the City of Zürich.
 
-8. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
+9. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
 
 In `workdir/logs/success`, the poipeline stores a log file for every
 mutation whose plans could be successfully georeferenced, wheras the logs

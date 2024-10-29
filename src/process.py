@@ -56,7 +56,8 @@ class Mutation(object):
             self.pdf_to_tiff(text)  # modifies text in case of split pages
             self.threshold()
 
-            bounds = self.estimate_bounds(text)
+            scales = self.extract_map_scales(text)
+            bounds = self.estimate_bounds(text, scales)
             if bounds == None:
                 return "BoundsNotFound"
             points_path = self.extract_survey_points(bounds, self.date)
@@ -167,6 +168,21 @@ class Mutation(object):
         os.rename(path + ".tmp", path)  # atomic
         self.log_stage_completion("thresholded")
         return path
+
+    def extract_map_scales(self, text):
+        result = []
+        scale_re = re.compile(r"\s+1\s*:(200|500|1000|2000|5000)\s+")
+        all_scales = list(sorted(set(scale_re.findall(" ".join(text)))))
+        if len(all_scales) == 0:
+            all_scales = [200, 500]  # defaults if OCR cannot find scale
+        for page in text:
+            page_scales = list(sorted(set(scale_re.findall(page))))
+            page_scales = page_scales or all_scales
+            result.append(page_scales)
+        for page_num, scales in enumerate(result):
+            sc = ",".join([f"1:{s}" for s in scales])
+            self.log.write(f"MapScale: page={page_num+1} scales={sc}\n")
+        return result
 
     def extract_parcels(self, text):
         p = set(re.findall(r"\b([23]\d{4}|[A-Z]{2}\d+)\b", "\n".join(text)))
@@ -292,7 +308,7 @@ class Mutation(object):
     # The implementation looks at parcel numbers extracted from OCR text,
     # and at the current (2007) survey data in the hope that the mutation
     # has left a trace in today’s data.
-    def estimate_bounds(self, text):
+    def estimate_bounds(self, text, scales):
         path = os.path.join(self.workdir, "bounds", f"{self.id}.geojson")
         if os.path.exists(path):
             with open(path) as fp:
