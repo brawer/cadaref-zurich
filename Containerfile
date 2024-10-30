@@ -34,4 +34,4 @@ WORKDIR /home/cadaref
 COPY src /home/cadaref/src
 COPY survey_data /home/cadaref/survey_data
 
-CMD ["python", "src/process.py"]
+CMD ["python", "src/process.py", "--cadaref_tool", "/usr/local/bin/cadaref-match"]
