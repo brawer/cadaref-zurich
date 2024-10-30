@@ -124,11 +124,13 @@ def make_geojson(f):
         "geometry": {
             "type": "Polygon",
             "coordinates": [
-                [f.min_x, f.min_y],
-                [f.max_x, f.min_y],
-                [f.max_x, f.max_y],
-                [f.min_x, f.max_y],
-                [f.min_x, f.min_y],
+                [
+                    [f.min_x, f.min_y],
+                    [f.max_x, f.min_y],
+                    [f.max_x, f.max_y],
+                    [f.min_x, f.max_y],
+                    [f.min_x, f.min_y],
+                ]
             ],
         },
     }
