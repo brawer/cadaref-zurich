@@ -66,8 +66,8 @@ class Mutation(object):
             symbols = self.detect_symbols(screenshots)
             if len(symbols) == 0:
                 return "NotEnoughSymbols"
-            if not self.georeference(scales, symbols):
-                return "NoMatches"
+            if self.georeference(scales, symbols) == 0:
+                return "GeoreferencingFailed"
 
             self.log_stage_completion("all")
             return "OK"
@@ -369,6 +369,7 @@ class Mutation(object):
         return tuple(bbox)
 
     def georeference(self, scales, symbols):
+        num_good = 0
         tmp_dir = os.path.join(self.workdir, "tmp")
         image_path = os.path.join(self.workdir, "rendered", f"{self.id}.tif")
         points_path = os.path.join(self.workdir, "points", f"{self.id}.csv")
@@ -404,19 +405,18 @@ class Mutation(object):
                 try:
                     proc = subprocess.run(cmd, capture_output=True, timeout=300)
                     exit_code = proc.returncode
-                    stdout = proc.stdout.decode("utf-8").rstrip()
-                    stderr = proc.stderr.decode("utf-8").rstrip()
+                    stdout = proc.stdout.decode("utf-8").strip()
+                    stderr = proc.stderr.decode("utf-8").strip()
                 except subprocess.TimeoutExpired:
                     exit_code = 99
                     stdout = ""
-                    stderr = "timeout after 300 seconds"
+                    stderr = "timeout"
                 if exit_code == 0 and os.path.exists(tmp_out_path):
                     self.log.write(f"Georeferenced: {out_filename}\n")
                     os.rename(tmp_out_path, out_path)
+                    num_good += 1
                 else:
-                    self.log.write(
-                        "GeoreferencingFailure: exit_code=%d\n" % proc.returncode
-                    )
+                    self.log.write("GeoreferencingFailure: exit_code=%d\n" % exit_code)
                     tiffcp_cmd = [
                         "tiffcp",
                         f"{image_path},{page_num-1}",  # zero-based page number
@@ -433,7 +433,7 @@ class Mutation(object):
                     self.log.write(f"CadarefError: {line}\n")
 
         self.log_stage_completion("georeference")
-        return False
+        return num_good
 
 
 def process_batch(scans, cadaref_tool, workdir):
