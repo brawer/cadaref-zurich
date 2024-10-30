@@ -27,11 +27,12 @@ venv/bin/python3 src/process.py --scans=/path/to/scans
 
 ### Linux
 
-If you work on Debian Linux, set up your machine like this:
+If you work on Debian Linux v12 (Bookworm), set up your machine like this:
 
 ```sh
 apt-get update
-apt-get install -y git rust
+apt-get install -y curl build-essential gcc git libgdal-dev
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sudo sh
 git clone https://github.com/brawer/cadaref.git
 cd cadaref
 cargo build --release
