@@ -10,6 +10,7 @@ import multiprocessing
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import traceback
 
@@ -28,10 +29,11 @@ DATE_PATTERN = re.compile(r".+_[jJ](\d{4})([-_](\d{2})[-_](\d{2}))?.*\.pdf$")
 
 
 class Mutation(object):
-    def __init__(self, id, date, scans, workdir):
+    def __init__(self, id, date, scans, cadaref_tool, workdir):
         self.id = id
         self.date = date
         self.scans = scans
+        self.cadaref_tool = cadaref_tool
         self.workdir = workdir
         self.log = io.StringIO()
 
@@ -55,19 +57,18 @@ class Mutation(object):
             text = self.pdf_to_text()
             self.pdf_to_tiff(text)  # modifies text in case of split pages
             self.threshold()
-
             scales = self.extract_map_scales(text)
             bounds = self.estimate_bounds(text, scales)
             if bounds == None:
                 return "BoundsNotFound"
-            points_path = self.extract_survey_points(bounds, self.date)
-
+            self.extract_survey_points(bounds, self.date)
             screenshots = self.detect_screenshots(text)
             symbols = self.detect_symbols(screenshots)
             if len(symbols) == 0:
                 return "NotEnoughSymbols"
+            if not self.georeference(scales, symbols):
+                return "NoMatches"
 
-            # TODO: Call georeferencing tool
             self.log_stage_completion("all")
             return "OK"
         except Exception as e:
@@ -367,13 +368,81 @@ class Mutation(object):
         self.log_stage_completion("bounds")
         return tuple(bbox)
 
+    def georeference(self, scales, symbols):
+        tmp_dir = os.path.join(self.workdir, "tmp")
+        image_path = os.path.join(self.workdir, "rendered", f"{self.id}.tif")
+        points_path = os.path.join(self.workdir, "points", f"{self.id}.csv")
+        with tempfile.TemporaryDirectory(dir=tmp_dir) as temp:
+            for page_num in sorted(symbols.keys()):
+                map_scales = ",".join([f"1:{s}" for s in scales[page_num - 1]])
+                symbols_path = os.path.join(temp, f"symbols_{page_num}.csv")
+                with open(symbols_path, "w") as fp:
+                    writer = csv.writer(fp)
+                    writer.writerow(["x", "y", "symbol"])
+                    for x, y, symbol in symbols[page_num]:
+                        writer.writerow([str(x), str(y), symbol])
+                if page_num == 1:
+                    out_filename = f"{self.id}.tif"
+                else:
+                    out_filename = f"{self.id}_{page_num}.tif"
+                tmp_out_path = os.path.join(temp, out_filename)
+                out_path = os.path.join(self.workdir, "georeferenced", out_filename)
+                cmd = [
+                    self.cadaref_tool,
+                    "--image",
+                    image_path,
+                    "--scales",
+                    map_scales,
+                    "--points",
+                    points_path,
+                    "--symbols",
+                    symbols_path,
+                    "--output",
+                    tmp_out_path,
+                ]
+                # Time out after 5 minutes (5 * 60 seconds).
+                try:
+                    proc = subprocess.run(cmd, capture_output=True, timeout=300)
+                    exit_code = proc.returncode
+                    stdout = proc.stdout.decode("utf-8").rstrip()
+                    stderr = proc.stderr.decode("utf-8").rstrip()
+                except subprocess.TimeoutExpired:
+                    exit_code = 99
+                    stdout = ""
+                    stderr = "timeout after 300 seconds"
+                if exit_code == 0 and os.path.exists(tmp_out_path):
+                    self.log.write(f"Georeferenced: {out_filename}\n")
+                    os.rename(tmp_out_path, out_path)
+                else:
+                    self.log.write(
+                        "GeoreferencingFailure: exit_code=%d\n" % proc.returncode
+                    )
+                    tiffcp_cmd = [
+                        "tiffcp",
+                        f"{image_path},{page_num-1}",  # zero-based page number
+                        tmp_out_path,  # writing to this path is not atomic
+                    ]
+                    subprocess.run(tiffcp_cmd)
+                    failed_path = os.path.join(
+                        self.workdir, "not_georeferenced", out_filename
+                    )
+                    os.rename(tmp_out_path, failed_path)  # atomic
+                for line in stdout.split("\n"):
+                    self.log.write(f"Cadaref: {line}\n")
+                for line in stderr.split("\n"):
+                    self.log.write(f"CadarefError: {line}\n")
 
-def process_batch(scans, workdir):
+        self.log_stage_completion("georeference")
+        return False
+
+
+def process_batch(scans, cadaref_tool, workdir):
     os.makedirs(workdir, exist_ok=True)
     for dirname in (
         "bounds",
         "georeferenced",
         "logs",
+        "not_georeferenced",
         "points",
         "rendered",
         "symbols",
@@ -382,14 +451,14 @@ def process_batch(scans, workdir):
         "tmp",
     ):
         os.makedirs(os.path.join(workdir, dirname), exist_ok=True)
-    work = find_work(scans, workdir)
+    work = find_work(scans, cadaref_tool, workdir)
     with multiprocessing.Pool() as pool:
         for _ in pool.imap_unordered(Mutation.process, work):
             pass
 
 
 # Returns a list of Mutations where we will need to do some work.
-def find_work(scans, workdir):
+def find_work(scans, cadaref_tool, workdir):
     logs_path = os.path.join(workdir, "logs")
     done = {os.path.splitext(f)[0] for f in os.listdir(logs_path)}
     work = []
@@ -410,7 +479,7 @@ def find_work(scans, workdir):
             dates.setdefault(id, date)
     for id in sorted(paths.keys()):
         if id not in done:
-            work.append(Mutation(id, dates.get(id), paths[id], workdir))
+            work.append(Mutation(id, dates.get(id), paths[id], cadaref_tool, workdir))
     dateless = {mut for mut in paths if not dates.get(mut)}
     with open(os.path.join(workdir, "logs", "bad_filenames.txt"), "w") as errs:
         errs.write("Unexpected filenames: %d\n" % len(unexpected_filenames))
@@ -498,8 +567,18 @@ def maybe_split_page(img_path, text):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument(
+        "--cadaref_tool",
+        default="cadaref/target/release/cadaref-match",
+        help="path to cararef-match tool",
+    )
+    ap.add_argument(
         "--scans", default="scans", help="path to input scans to be processed"
     )
     ap.add_argument("--workdir", default="workdir", help="path to work dir")
     args = ap.parse_args()
-    process_batch(args.scans, args.workdir)
+    if not os.path.exists(args.cadaref_tool):
+        print(
+            "please pass path to cadaref-match tool as --cadaref_tool", file=sys.stderr
+        )
+        sys.exit(1)
+    process_batch(args.scans, args.cadaref_tool, args.workdir)

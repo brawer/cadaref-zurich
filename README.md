@@ -138,9 +138,15 @@ from two sources: The land survey database as of 2007, and a list of
 manually checked) from scanned and OCRed point deletion logs that
 happened to get archived by the City of Zürich.
 
-9. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
+9. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores
+geo-referenced imagery in Cloud-Optimized GeoTIFF format. The georeferencing
+is done by calling the [Cadaref tool](https://github.com/brawer/cadaref)
+with the rendered image, map scale, symbols and points that were found
+by the previous steps. If an image could not be georeferenced, the pipeline
+stores it in TIFF format in `workdir/not_georeferenced`.
 
-In `workdir/logs`, the poipeline stores a log file for every
+
+In `workdir/logs`, the pipeline stores a log file for every
 mutation.
 
 In `workdir/tmp`, the pipeline stores temporary files. We do not use `/tmp`
