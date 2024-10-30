@@ -72,13 +72,13 @@ in the OCRed text; this was both simpler and more reliable.
 
 3. **Thresholding:** In `workdir/thresholded`, the pipeline stores
 a thresholded (binarized) version of the rendered image as a tiled,
-multi-page, black-and-white TIFF image in [group 4 compression](https://en.wikipedia.org/wiki/Group_4_compression). The pipeline chooses a suitable
-threshold for each page by means of the classic [Ōtsu method](https://en.wikipedia.org/wiki/Otsu%27s_method). However, the mutation plan archive
+multi-page, black-and-white TIFF image in [Group 4 compression](https://en.wikipedia.org/wiki/Group_4_compression). The pipeline chooses a suitable
+threshold for each page by means of the classic [Ōtsu method](https://en.wikipedia.org/wiki/Otsu%27s_method). However, the Zürich mutation plan archive
 contains a handful of very dark scans where the Ōtsu method did not
-perform well. The pipeline detects this case and applies a custom
-workaround to handle it.
+perform well. The pipeline detects this, and applies a custom workaround
+to handle it.
 
-4. **Map scale extraction:** The pipeline tries to find the map scale,
+4. **Map scale detection:** The pipeline tries to find the map scale,
 such as `1:500`, that was often (but not always) printed on the historical
 map. If no scale designation can be found on the page, the pipeline falls
 back to the other pages in the same mutation dossier because sometimes
@@ -140,9 +140,8 @@ happened to get archived by the City of Zürich.
 
 9. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores...
 
-In `workdir/logs/success`, the poipeline stores a log file for every
-mutation whose plans could be successfully georeferenced, wheras the logs
-for failed attempts are logged in `workdir/logs/failed`.
+In `workdir/logs`, the poipeline stores a log file for every
+mutation.
 
 In `workdir/tmp`, the pipeline stores temporary files. We do not use `/tmp`
 because some of our temporary files can be very large, and we do not
@@ -150,8 +149,8 @@ want to exhaust physical memory in case `/tmp` happens to be implemented
 by a [tmpfs file system](https://en.wikipedia.org/wiki/Tmpfs) on the
 worker machine.
 
-On a multi-core machine, the pipeline will process several mutation files
-in parallel.
+To maximize throughput, the pipeline will concurrently process several
+mutation files on a multi-processor machine.
 
 
 ## Contributing

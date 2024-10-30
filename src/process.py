@@ -66,6 +66,7 @@ class Mutation(object):
             symbols = self.detect_symbols(screenshots)
             if len(symbols) == 0:
                 return "NotEnoughSymbols"
+
             # TODO: Call georeferencing tool
             self.log_stage_completion("all")
             return "OK"
@@ -81,8 +82,7 @@ class Mutation(object):
 
     def write_log(self, status):
         self.log.write(f"Status: {status}\n")
-        log_dir = "success" if (status == "OK") else "failed"
-        path = os.path.join(self.workdir, "logs", log_dir, f"{self.id}.txt")
+        path = os.path.join(self.workdir, "logs", f"{self.id}.txt")
         with open(path + ".tmp", "w") as fp:
             fp.write(self.log.getvalue())  # not atomic
         os.rename(path + ".tmp", path)  # atomic
@@ -371,16 +371,15 @@ class Mutation(object):
 def process_batch(scans, workdir):
     os.makedirs(workdir, exist_ok=True)
     for dirname in (
-        "text",
-        "rendered",
-        "georeferenced",
-        "thresholded",
-        "symbols",
         "bounds",
+        "georeferenced",
+        "logs",
         "points",
+        "rendered",
+        "symbols",
+        "text",
+        "thresholded",
         "tmp",
-        os.path.join("logs", "failed"),
-        os.path.join("logs", "success"),
     ):
         os.makedirs(os.path.join(workdir, dirname), exist_ok=True)
     work = find_work(scans, workdir)
@@ -392,7 +391,7 @@ def process_batch(scans, workdir):
 # Returns a list of Mutations where we will need to do some work.
 def find_work(scans, workdir):
     logs_path = os.path.join(workdir, "logs")
-    done = {os.path.splitext(f) for f in os.listdir(logs_path)}
+    done = {os.path.splitext(f)[0] for f in os.listdir(logs_path)}
     work = []
     unexpected_filenames = set()
     dates = {}  # mutation id -> date
