@@ -568,7 +568,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "--cadaref_tool",
-        default="cadaref/target/release/cadaref-match",
+        default="../cadaref/target/release/cadaref-match",
         help="path to cararef-match tool",
     )
     ap.add_argument(
