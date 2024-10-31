@@ -111,13 +111,14 @@ with map scales that commonly appear in the dataset.
 GeoJSON file with the approximate bounds of the mutation.  The bounds
 are approximated by looking up the parcel numbers, found by means of
 Optical Character Recognition, in the survey data of December 2007.
-This GeoJSON file uses a `crs` field that indicates the Swiss LV95
-coordinate reference system. The `crs` property had been part of the
-original GeoJSON specification, but was removed from the GeoJSON format
-during the IETF standardization process because WGS84 coordinates are
-enough for most typical use cases. Therefore, the GeoJSON file
-may not be readable by all software. — If no bounds can be found,
-the pipeline stops processing the mutation with status `BoundsNotFound`.
+This will capture any parcels whose numbers are mentioned in the text
+documentation for the mutation, and any parcels whose numbers were
+printed on the map (provided OCR managed to read the text).  Also,
+today’s land survey database stores for every parcel by what mutation
+it got created. In case our historic mutation has created parcels that
+that still happen to exist today, we incorporate their bounds into our
+estimation. — If no bounds can be found, the pipeline stops processing
+the mutation with status `BoundsNotFound`.
 
 8. **Screenshot detection:** Some mutation dossiers of the late 1990s
 and early 2000s contain printed-out screenshots of a Microsoft Windows
