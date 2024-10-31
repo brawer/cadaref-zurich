@@ -93,11 +93,13 @@ out to be more reliable.
 
 5. **Thresholding:** In `workdir/thresholded`, the pipeline stores
 a thresholded (binarized) version of the rendered image as a tiled,
-multi-page, black-and-white TIFF image in [Group 4 compression](https://en.wikipedia.org/wiki/Group_4_compression). The pipeline chooses a suitable
+multi-page, black-and-white TIFF image in [Telefax CCITT Group 4 compression](https://en.wikipedia.org/wiki/Group_4_compression). The pipeline chooses a suitable
 threshold for each page by means of the classic [Ōtsu method](https://en.wikipedia.org/wiki/Otsu%27s_method). However, the Zürich mutation plan archive
 contains a handful of very dark scans where the Ōtsu method did not
 perform well. The pipeline detects this, and applies a custom workaround
-to handle it.
+to handle it. Also at this stage, the pipeline runs some basic image
+pre-processing algorithms to clean up scanning artifacts. For example,
+a morphological operation is used to remove small dust speckles.
 
 6. **Detecting screenshots:** Some mutation dossiers of the late 1990s
 and early 2000s contain printed-out screenshots of a Microsoft Windows
