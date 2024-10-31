@@ -79,6 +79,26 @@ SUCCESS 20009
 You’ll find the output of each pipeline step inside `workdir`.
 
 
+## Visualize symbol detection
+
+To visualize symbol detection, run the following command. It will
+produce a TIFF file `HG3099.symbols.tif` in which the detected
+cartographic symbols are highlighted in color.
+
+```sh
+venv/bin/python3 src/debug_symbol_detection.py --rendered=workdir/rendered/HG3099.tif
+```
+
+To generate input for `debug_symbol_detection.py` without running
+the entire pipeline, do the following. This will work for any input,
+even if it is very different from the cadastral mutation plans
+in the archives of the City of Zürich.
+
+```sh
+pdftocairo -tiff -r 300 sample.pdf
+venv/bin/python3 src/debug_symbol_detection.py --rendered sample-1.tif
+```
+
 ## Change the source code
 
 To change the source code of the pipeline, use any editor of your choice.
