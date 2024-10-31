@@ -315,12 +315,6 @@ class Mutation(object):
     def detect_map_symbols_on_page(self, image, scale):
         page = numpy.asarray(image).astype(numpy.uint8) * 255
 
-        # Our classifier sometimes gets confused if the outermost
-        # pixels aren't white. Draw a one-pixel white line around
-        # the plan.
-        h, w = page.shape[0], page.shape[1]
-        cv2.rectangle(page, (0, 0), (w - 1, h - 1), color=255)
-
         # At the moment, detection of white symbols is much
         # more reliable than detection of black symbols (mainly
         # because small black dots get confused with text and
