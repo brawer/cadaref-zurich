@@ -99,37 +99,51 @@ contains a handful of very dark scans where the Ōtsu method did not
 perform well. The pipeline detects this, and applies a custom workaround
 to handle it.
 
-6. **Map scale detection:** The pipeline tries to find the map scale,
-such as `1:500`, that was often (but not always) printed on the historical
+6. **Detecting screenshots:** Some mutation dossiers of the late 1990s
+and early 2000s contain printed-out screenshots of a Microsoft Windows
+database. At the time, this Windows tool was used to manage the
+cadastral register, and Windows screenshots were regularly printed out
+and archived.  Because these screenshot print-outs look like maps
+(they have long thin lines like a cadastral plan), our pipeline needs
+to detect them. We experimented with computer vision, but by far the
+easiest and most reliable way to detect screenshots was to look at the
+OCRed text. The pipeline does not generate any special files for detected
+screenshots, but it notes a list of screenshot pages in the logs.
+
+7. **Detecting map scale:** The pipeline tries to find the map scale,
+such as `1:500`, which is often (but not always) printed on the historical
 map. If no scale designation can be found on the page, the pipeline falls
 back to the other pages in the same mutation dossier because sometimes
 the scale was given on the page next to the actual map. If this still
 does not lead to any map scales, the pipeline supplies a fallback list
-with map scales that commonly appear in the dataset.
+with map scales that commonly appear in the Zürich dataset.
 
-7. **Bounds estimation:** In `workdir/bounds`, the pipeline stores a
-GeoJSON file with the approximate bounds of the mutation.  The bounds
-are approximated by looking up the parcel numbers, found by means of
-Optical Character Recognition, in the survey data of December 2007.
-This will capture any parcels whose numbers are mentioned in the text
-documentation for the mutation, and any parcels whose numbers were
-printed on the map (provided OCR managed to read the text).  Also,
-today’s land survey database stores for every parcel by what mutation
-it got created. In case our historic mutation has created parcels that
-that still happen to exist today, we incorporate their bounds into our
-estimation. — If no bounds can be found, the pipeline stops processing
-the mutation with status `BoundsNotFound`.
+8. **Measuring distance limit:** For every scanned page that hasn’t
+been classified as a screenshot, the pipeline measures the maximum
+distance between any two points assuming it’s a map.  The inputs to
+this computation are the map scale, the width and height of the
+rendered image in raster pixels, and the resolution of the rendered
+image in dots per inch (dpi). For example, if the detected map scale
+is 1:1000, and the image is 2480×3508 pixels at 300 dpi, the scanned
+page is 21.0×29.7 centimeters (DIN A4). At scale 1:1000, this
+corresponds to 210×297 meters on the ground. Thus, the distance
+between any two points depicted on this map can’t be more than √(210²
++ 297²) = 363.7 meters.  We’ll need this value in the next step.
 
-8. **Screenshot detection:** Some mutation dossiers of the late 1990s
-and early 2000s contain printed-out screenshots of a Microsoft Windows
-database. At the time, this tool was used to manage the cadastral
-register. Because these screenshots confuse the symbol recognition,
-the pipeline detects them. The easiest and most reliable way to detect
-screenshots was to look at the OCRed text.  The pipeline does not
-generate special files for detected screenshots, but it notes a list
-of screenshot pages in the logs.
+9. **Estimating mutation bounds:** In `workdir/bounds`, the pipeline
+stores a GeoJSON file with the approximate bounds of the mutation.
+The bounds are approximated by looking up the parcel numbers, found by
+means of Optical Character Recognition, in the survey data of December
+2007.  This will capture any parcels whose numbers are mentioned in
+the text documentation for the mutation, and any parcels whose numbers
+were printed on the map (provided OCR managed to read the text).
+Also, today’s land survey database stores for every parcel by what
+mutation it got created. In case our historic mutation has created
+parcels that that still happen to exist today, we incorporate their
+bounds into our estimation. — If no bounds can be found, the pipeline
+stops processing the mutation with status `BoundsNotFound`.
 
-9. **Symbol recognition:** In `workdir/symbols`, the pipeline stores
+10. **Symbol recognition:** In `workdir/symbols`, the pipeline stores
 a CSV file that tells which symbols have been recognized on the historical
 map images by means of computer vision. The CSV file contains the
 following columns: `page` for the document page, `x` and `y` for
@@ -139,7 +153,7 @@ symbol recognition works on an enhanced-resolution image), and
 in the dossier with at least four cartographic symbols, the pipeline
 stops processing this mutation with status `NotEnoughSymbols`.
 
-10. **Survey data extraction:** In `workdir/points`, the pipeline
+11. **Survey data extraction:** In `workdir/points`, the pipeline
 stores a CSV file with the geographic points (survey markers, fixed
 points) that are likely to have been drawn on the historical cadastral
 map.  The CSV file contains the following columns: `id`, `x`, `y` and
@@ -160,7 +174,7 @@ from two sources: The land survey database as of 2007, and a list of
 manually checked) from scanned and OCRed point deletion logs that
 happened to get archived by the City of Zürich.
 
-11. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores
+12. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores
 geo-referenced imagery in Cloud-Optimized GeoTIFF format. The georeferencing
 is done by calling the [Cadaref tool](https://github.com/brawer/cadaref)
 with the rendered image, map scale, symbols and points that were found

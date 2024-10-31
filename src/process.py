@@ -6,6 +6,7 @@ import csv
 import datetime
 import io
 import json
+import math
 import multiprocessing
 import os
 import re
@@ -57,16 +58,18 @@ class Mutation(object):
             text = self.pdf_to_text()
             self.pdf_to_tiff(text)  # modifies text in case of split pages
             self.threshold()
-            scales = self.extract_map_scales(text)
-            bounds = self.estimate_bounds(text, scales)
+            screenshots, text = self.detect_screenshots(text)
+            map_scales = self.extract_map_scales(text)
+            distance_limit = self.measure_distance_limit(map_scales, screenshots)
+            bounds = self.estimate_bounds(text)
             if bounds == None:
                 return "BoundsNotFound"
             self.extract_survey_points(bounds, self.date)
-            screenshots = self.detect_screenshots(text)
+
             symbols = self.detect_symbols(screenshots)
             if len(symbols) == 0:
                 return "NotEnoughSymbols"
-            if self.georeference(scales, symbols) == 0:
+            if self.georeference(map_scales, symbols) == 0:
                 return "GeoreferencingFailed"
 
             self.log_stage_completion("all")
@@ -175,7 +178,7 @@ class Mutation(object):
         scale_re = re.compile(r"\s+1\s*:(200|500|1000|2000|5000)\s+")
         all_scales = list(sorted(set(scale_re.findall(" ".join(text)))))
         if len(all_scales) == 0:
-            all_scales = [200, 500]  # defaults if OCR cannot find scale
+            all_scales = [200, 500]  # defaults if OCR cannot find any scales
         for page in text:
             page_scales = list(sorted(set(scale_re.findall(page))))
             page_scales = page_scales or all_scales
@@ -184,6 +187,27 @@ class Mutation(object):
             sc = ",".join([f"1:{s}" for s in scales])
             self.log.write(f"MapScale: page={page_num+1} scales={sc}\n")
         return result
+
+    def measure_distance_limit(self, scales, screenshots):
+        img_path = os.path.join(self.workdir, "rendered", f"{self.id}.tif")
+        limits = []
+        with PIL.Image.open(img_path) as img:
+            for page_num in range(min(img.n_frames, len(scales))):
+                if page_num + 1 in screenshots:
+                    continue
+                scale = float(max(scales[page_num]))
+                img.seek(page_num)
+                page_width_cm = img.width / float(img.info["dpi"][0]) * 2.54
+                page_height_cm = img.height / float(img.info["dpi"][1]) * 2.54
+                # Compute page extents in real-world meters.
+                width_m = page_width_cm * scale / 100.0
+                height_m = page_height_cm * scale / 100.0
+                # Points on this page can’t be more than `limit` meters
+                # away from each other (Pythagoras).
+                limit = math.sqrt(width_m * width_m + height_m * height_m)
+                limits.append(limit)
+                self.log.write(f"DistanceLimit: page={page_num+1} limit={limit}\n")
+        return max(limits)
 
     def extract_parcels(self, text):
         p = set(re.findall(r"\b([23]\d{4}|[A-Z]{2}\d+)\b", "\n".join(text)))
@@ -226,17 +250,23 @@ class Mutation(object):
     # For example, pages 12 and 13 of scan WO_Mut_20003_Kat_WO6495_j2005.pdf
     # are screenhots of that Windows tool, and the result of calling this
     # method on that scan is {12, 13}.
+    #
+    # We also return the input text on the pages, redacted for screenshots
+    # in order to not confuse later stages of the pipeline.
     def detect_screenshots(self, pages):
         keywords = ("User:", " VAZ-LB ")
-        screenshots = set()
+        screenshots, text = set(), []
         for page_num, page_text in enumerate(pages):
             if any(k in page_text for k in keywords):
                 screenshots.add(page_num + 1)
+                text.append("[Screenshot]")
+            else:
+                text.append(page_text)
         if len(screenshots) > 0:
             self.log.write(
                 "Screenshots: pages %s\n" % ",".join(sorted(map(str, screenshots)))
             )
-        return screenshots
+        return screenshots, text
 
     def detect_symbols(self, screenshots):
         sym_path = os.path.join(self.workdir, "symbols", f"{self.id}.csv")
@@ -309,7 +339,7 @@ class Mutation(object):
     # The implementation looks at parcel numbers extracted from OCR text,
     # and at the current (2007) survey data in the hope that the mutation
     # has left a trace in today’s data.
-    def estimate_bounds(self, text, scales):
+    def estimate_bounds(self, text):
         path = os.path.join(self.workdir, "bounds", f"{self.id}.geojson")
         if os.path.exists(path):
             with open(path) as fp:
@@ -341,12 +371,14 @@ class Mutation(object):
 
         coords = []
         for f in features:
-            for c in f["geometry"]["coordinates"]:
-                coords.append(c)
+            for ring in f["geometry"]["coordinates"]:
+                for c in ring:
+                    coords.append(c)
 
         min_x, min_y = min(c[0] for c in coords), min(c[1] for c in coords)
         max_x, max_y = max(c[0] for c in coords), max(c[1] for c in coords)
         bbox = [min_x, min_y, max_x, max_y]
+
         self.log.write(f"MutationBounds: {bbox}\n")
         geojson = {
             "type": "FeatureCollection",
