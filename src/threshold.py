@@ -83,6 +83,15 @@ def threshold_page(in_path, tiff, page_num):
         }
         t, thresh = cv2.threshold(gray, new_t, 255, cv2.THRESH_BINARY)
 
+    # Remove small speckles.
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+
+    # Draw a single-pixel white border around the thresholded image.
+    # Without this, our symbol detection (which internally uses OpenCV
+    # contour detection) sometimes gets confused.
+    cv2.rectangle(thresh, (0, 0), (out_width - 1, out_height - 1), color=255)
+
     bw = PIL.Image.fromarray(thresh).convert("1")
     bw.encoderconfig = ()
     bw.encoderinfo = {
