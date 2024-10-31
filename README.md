@@ -42,10 +42,18 @@ so we always have all data for a mutation in a single file.
 
 The pipeline consists of the following stages:
 
-1. **Text extraction:** In `workdir/text`, the pipeline stores the
+1. **Finding work:** The pipeline starts by listing the contents
+of the input directory, looking for PDF files that match the
+naming scheme used by the cadastral plan archive of the City of Zürich.
+For each mutation, the pipeline checks if there’s a log file from
+previous run. If no log file can be found, the mutation is put on
+a work queue for processing.
+
+2. **Text extraction:** In `workdir/text`, the pipeline stores the
 plaintext for every mutation as found by means of Optical Character
-Recognition (OCR). To produce its archival PDF/A files, the document scanning
-center of the City of Zürich happened to run [Kodak Capture Pro](https://support.alarisworld.com/en-us/capture-pro-software).
+Recognition (OCR). To produce its archival PDF/A files, the document
+scanning center of the City of Zürich uses
+[Kodak Capture Pro](https://support.alarisworld.com/en-us/capture-pro-software).
 While developing this pipeline for georeferencing historical cadastral plans,
 we evaluated various alternative OCR systems:
 [Tesseract](https://tesseract-ocr.github.io/tessdoc/),
@@ -55,22 +63,35 @@ we evaluated various alternative OCR systems:
 [Google Document AI](https://cloud.google.com/document-ai),
 and [Amazon Textract](https://aws.amazon.com/textract/).
 However, the OCR engine of Kodak Capture Pro
-gave  the best quality for the input dataset.
+gave the best quality for the input dataset.
 Therefore, the current version of the pipeline simply extracts
 the embedded plaintext from the PDF/A input. For PDF parsing
 and layout analysis, is uses the [Poppler](https://poppler.freedesktop.org/)
 library.
 
-2. **Rendering:** In `workdir/rendered`, the pipeline stores a
-tiled, zip-compressed, multi-page color TIFF image for every mutation dossier.
-Sometimes, a single scanned page contains a mutation plan that was glued
-next to a table or some text. In its rendering stage, the pipeline detetects
-such glued-together pages and vertically splits them in two halves.
-Initially, we had used (rather complex) image analysis to detect this
-situation. Ultimately, however, we settled on looking for certain keywords
-in the OCRed text; this was both simpler and more reliable.
+3. **Rendering:** The pipeline converts every page in the input PDF
+to a tiled, 24-bit color, single-page TIFF image with gzip compression.
+For PDF rendering, we use [Poppler](https://poppler.freedesktop.org/)
+and [Cairo](https://www.cairographics.org/).
 
-3. **Thresholding:** In `workdir/thresholded`, the pipeline stores
+4. **Page splitting:** In `workdir/rendered`, the pipeline stores a
+tiled, gzip-compressed, 24-bit color, multi-page TIFF image file
+for every mutation dossier. In the output of the previous step,
+the pipeline detects glued-together pages and splits them in two halves
+along the middle fold. Possibly to save time, the human scanning operators
+occasionally happened to merge two separate DIN A4 pages into a single A3
+page with landscape orientation. However, sometimes a historical cadastral
+plan really was in landscape DIN A3 format, so we cannot blindly split
+all A3 pages. Likewise, the scan contractors did not bother to separate
+the left and right halves when scanning bound tomes of the early 20th century;
+and again, we cannot blindly split everything because sometimes, a single
+historical map really does span two pages. Initially, we detected this
+situation algorithmically, by means of image analysis.
+Ultimately, however, we settled on looking for certain keywords
+in the OCRed text. Looking for certain keywords is much simpler and turned
+out to be more reliable.
+
+5. **Thresholding:** In `workdir/thresholded`, the pipeline stores
 a thresholded (binarized) version of the rendered image as a tiled,
 multi-page, black-and-white TIFF image in [Group 4 compression](https://en.wikipedia.org/wiki/Group_4_compression). The pipeline chooses a suitable
 threshold for each page by means of the classic [Ōtsu method](https://en.wikipedia.org/wiki/Otsu%27s_method). However, the Zürich mutation plan archive
@@ -78,7 +99,7 @@ contains a handful of very dark scans where the Ōtsu method did not
 perform well. The pipeline detects this, and applies a custom workaround
 to handle it.
 
-4. **Map scale detection:** The pipeline tries to find the map scale,
+6. **Map scale detection:** The pipeline tries to find the map scale,
 such as `1:500`, that was often (but not always) printed on the historical
 map. If no scale designation can be found on the page, the pipeline falls
 back to the other pages in the same mutation dossier because sometimes
@@ -86,7 +107,7 @@ the scale was given on the page next to the actual map. If this still
 does not lead to any map scales, the pipeline supplies a fallback list
 with map scales that commonly appear in the dataset.
 
-5. **Bounds estimation:** In `workdir/bounds`, the pipeline stores a
+7. **Bounds estimation:** In `workdir/bounds`, the pipeline stores a
 GeoJSON file with the approximate bounds of the mutation.  The bounds
 are approximated by looking up the parcel numbers, found by means of
 Optical Character Recognition, in the survey data of December 2007.
@@ -98,7 +119,7 @@ enough for most typical use cases. Therefore, the GeoJSON file
 may not be readable by all software. — If no bounds can be found,
 the pipeline stops processing the mutation with status `BoundsNotFound`.
 
-6. **Screenshot detection:** Some mutation dossiers of the late 1990s
+8. **Screenshot detection:** Some mutation dossiers of the late 1990s
 and early 2000s contain printed-out screenshots of a Microsoft Windows
 database. At the time, this tool was used to manage the cadastral
 register. Because these screenshots confuse the symbol recognition,
@@ -107,7 +128,7 @@ screenshots was to look at the OCRed text.  The pipeline does not
 generate special files for detected screenshots, but it notes a list
 of screenshot pages in the logs.
 
-7. **Symbol recognition:** In `workdir/symbols`, the pipeline stores
+9. **Symbol recognition:** In `workdir/symbols`, the pipeline stores
 a CSV file that tells which symbols have been recognized on the historical
 map images by means of computer vision. The CSV file contains the
 following columns: `page` for the document page, `x` and `y` for
@@ -117,7 +138,7 @@ symbol recognition works on an enhanced-resolution image), and
 in the dossier with at least four cartographic symbols, the pipeline
 stops processing this mutation with status `NotEnoughSymbols`.
 
-8. **Survey data extraction:** In `workdir/points`, the pipeline
+10. **Survey data extraction:** In `workdir/points`, the pipeline
 stores a CSV file with the geographic points (survey markers, fixed
 points) that are likely to have been drawn on the historical cadastral
 map.  The CSV file contains the following columns: `id`, `x`, `y` and
@@ -138,7 +159,7 @@ from two sources: The land survey database as of 2007, and a list of
 manually checked) from scanned and OCRed point deletion logs that
 happened to get archived by the City of Zürich.
 
-9. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores
+11. **Georeferencing:** In `workdir/georeferenced`, the pipeline stores
 geo-referenced imagery in Cloud-Optimized GeoTIFF format. The georeferencing
 is done by calling the [Cadaref tool](https://github.com/brawer/cadaref)
 with the rendered image, map scale, symbols and points that were found
