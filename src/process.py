@@ -61,7 +61,7 @@ class Mutation(object):
             screenshots, text = self.detect_screenshots(text)
             map_scales = self.extract_map_scales(text)
             distance_limit = self.measure_distance_limit(map_scales, screenshots)
-            bounds = self.estimate_bounds(text)
+            bounds = self.estimate_bounds(text, distance_limit)
             if bounds == None:
                 return "BoundsNotFound"
             self.extract_survey_points(bounds, self.date)
@@ -339,7 +339,7 @@ class Mutation(object):
     # The implementation looks at parcel numbers extracted from OCR text,
     # and at the current (2007) survey data in the hope that the mutation
     # has left a trace in today’s data.
-    def estimate_bounds(self, text):
+    def estimate_bounds(self, text, distance_limit):
         path = os.path.join(self.workdir, "bounds", f"{self.id}.geojson")
         if os.path.exists(path):
             with open(path) as fp:
@@ -377,6 +377,80 @@ class Mutation(object):
 
         min_x, min_y = min(c[0] for c in coords), min(c[1] for c in coords)
         max_x, max_y = max(c[0] for c in coords), max(c[1] for c in coords)
+        features.append(
+            {
+                "type": "Feature",
+                "id": "bounding box before growing",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [min_x, min_y],
+                            [max_x, min_y],
+                            [max_x, max_y],
+                            [min_x, max_y],
+                            [min_x, min_y],
+                        ]
+                    ],
+                },
+            }
+        )
+
+        # Swiss LV95/CH1903+ coordinates are in meters, so we can compare
+        # the computed width and height to distance_limit without projection.
+        width = max_x - min_x
+        if width < distance_limit:
+            old_min_x, old_max_x, old_width = min_x, max_x, width
+            # min_x = old_max_x - distance_limit
+            # max_x = old_min_x + distance_limit
+            center_x = min_x + (max_x - min_x) / 2
+            min_x = center_x - distance_limit / 2
+            max_x = center_x + distance_limit / 2
+            width = max_x - min_x
+            self.log.write(
+                f"MutationBounds: width ({old_width} meters) "
+                + f"< distance_limit ({distance_limit} meters); "
+                + f"correcting bounds.x = [{old_min_x} .. "
+                + f"{old_max_x}] to [{min_x} .. {max_x}], "
+                + f"new width is {width} meters\n"
+            )
+
+        height = max_y - min_y
+        if height < distance_limit:
+            old_min_y, old_max_y, old_height = min_y, max_y, height
+            # min_y = old_max_y - distance_limit
+            # max_y = old_min_y + distance_limit
+            center_y = min_y + (max_y - min_y) / 2
+            min_y = center_y - distance_limit / 2
+            max_y = center_y + distance_limit / 2
+            height = max_y - min_y
+            self.log.write(
+                f"MutationBounds: height ({old_height} meters) "
+                + f"< distance_limit ({distance_limit} meters); "
+                + f"correcting bounds.y = [{old_min_y} .. "
+                + f"{old_max_y}] to [{min_y} .. {max_y}], "
+                + f"new height is {height} meters\n"
+            )
+
+        features.append(
+            {
+                "type": "Feature",
+                "id": "bounding box after growing",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [
+                        [
+                            [min_x, min_y],
+                            [max_x, min_y],
+                            [max_x, max_y],
+                            [min_x, max_y],
+                            [min_x, min_y],
+                        ]
+                    ],
+                },
+            }
+        )
+
         bbox = [min_x, min_y, max_x, max_y]
 
         self.log.write(f"MutationBounds: {bbox}\n")

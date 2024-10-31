@@ -140,8 +140,11 @@ were printed on the map (provided OCR managed to read the text).
 Also, today’s land survey database stores for every parcel by what
 mutation it got created. In case our historic mutation has created
 parcels that that still happen to exist today, we incorporate their
-bounds into our estimation. — If no bounds can be found, the pipeline
-stops processing the mutation with status `BoundsNotFound`.
+bounds into our estimation. If the estimated bounds are smaller than
+the distance limit (the maximal distance covered by the map) from the
+previous step, we grow the bounding box accordingly. — If no bounds
+can be found, the pipeline stops processing the mutation with status
+`BoundsNotFound`.
 
 10. **Symbol recognition:** In `workdir/symbols`, the pipeline stores
 a CSV file that tells which symbols have been recognized on the historical
