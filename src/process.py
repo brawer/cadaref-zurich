@@ -492,6 +492,8 @@ class Mutation(object):
                     self.cadaref_tool,
                     "--image",
                     image_path,
+                    "--page",
+                    str(page_num),
                     "--scales",
                     map_scales,
                     "--points",
