@@ -31,7 +31,7 @@ If you work on Debian Linux v12 (Bookworm), set up your machine like this:
 
 ```sh
 apt-get update
-apt-get install -y curl build-essential gcc git libgdal-dev
+apt-get install -y curl build-essential gcc git libgdal-dev pkg-config
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sudo sh
 git clone https://github.com/brawer/cadaref.git
 cd cadaref
