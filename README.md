@@ -130,7 +130,7 @@ is 1:1000, and the image is 2480×3508 pixels at 300 dpi, the scanned
 page is 21.0×29.7 centimeters (DIN A4). At scale 1:1000, this
 corresponds to 210×297 meters on the ground. Thus, the distance
 between any two points depicted on this map can’t be more than
-√(210² + 297²) = 363.7 meters.  We’ll need this value in the next step.
+√(210² + 297²) = 363.7 meters.  We’ll need this value in the next step.
 
 9. **Estimating mutation bounds:** In `workdir/bounds`, the pipeline
 stores a GeoJSON file with the approximate bounds of the mutation.
