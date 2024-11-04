@@ -25,7 +25,7 @@ docker run \
     --network none   \
     --mount type=bind,src=path/to/scans,dst=/home/cadaref/scans,readonly   \
     --mount type=bind,src=./workdir,dst=/home/cadaref/workdir  \
-    ghcr.io/brawer/cadaref-zurich:latest
+    ghcr.io/brawer/cadaref-zurich:v0.2.0
 ```
 
 ## Pipeline
